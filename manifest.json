@@ -1,0 +1,23 @@
+
+{
+  "name": "Examsy - Al Irsyad Solo",
+  "short_name": "Examsy",
+  "description": "Platform Ujian Semi-Online Modern SMP Al Irsyad Surakarta",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#4f46e5",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "https://www.alirsyad.or.id/wp-content/uploads/download/alirsyad-alislamiyyah-bw.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://www.alirsyad.or.id/wp-content/uploads/download/alirsyad-alislamiyyah-bw.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
