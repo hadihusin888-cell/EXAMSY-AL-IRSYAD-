@@ -1,4 +1,3 @@
-
 // Fix: Use standard modular import for Firebase 9+
 import { initializeApp } from "firebase/app";
 import { 
