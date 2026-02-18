@@ -35,7 +35,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [roomToEdit, setRoomToEdit] = useState<Room | null>(null);
-  const [roomToDelete, setRoomToDelete] = useState<string | null>(null);
+  const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
 
   // Search & Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -326,10 +326,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <span className="text-slate-400">Login</span>
                           <span className="text-slate-700 font-mono">{room.username}</span>
                        </div>
+                       <div className="flex justify-between items-center text-[10px] font-black uppercase">
+                          <span className="text-slate-400">Kapasitas</span>
+                          <span className="text-slate-700">{room.capacity} Peserta</span>
+                       </div>
                     </div>
                     <div className="flex justify-between items-center pt-4 border-t border-slate-50">
                       <button onClick={() => setRoomToEdit(room)} className="text-indigo-600 font-black text-[10px] uppercase tracking-widest hover:underline">Edit Detail</button>
-                      <button onClick={() => setRoomToDelete(room.id)} className="text-red-400 hover:text-red-600 transition-colors">
+                      <button onClick={() => setRoomToDelete(room)} className="text-red-400 hover:text-red-600 transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                       </button>
                     </div>
@@ -413,12 +417,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
+      {/* STUDENT MODAL */}
       {(studentToEdit || studentToAdd) && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white w-full max-w-xl p-10 rounded-[3rem] shadow-2xl">
-            <h3 className="text-2xl font-black text-slate-900 mb-8 uppercase tracking-tighter">{studentToEdit ? 'Ubah Siswa' : 'Tambah Siswa'}</h3>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-xl p-8 md:p-12 rounded-[3rem] shadow-2xl relative animate-in zoom-in-95">
+            <button onClick={() => { setStudentToEdit(null); setStudentToAdd(false); }} className="absolute top-8 right-8 text-slate-400 hover:text-red-500 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            
+            <div className="mb-10">
+              <h3 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter leading-none">
+                {studentToEdit ? 'Ubah Data Siswa' : 'Tambah Siswa Baru'}
+              </h3>
+              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2">
+                Informasi Akun & Sinkronisasi Ruang
+              </p>
+            </div>
+
             <form onSubmit={async (e) => {
               e.preventDefault();
+              if (isProcessing) return;
               const f = new FormData(e.currentTarget);
               const data = {
                 nis: (f.get('nis') as string).trim(),
@@ -430,29 +448,178 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               };
               const ok = await onAction(studentToEdit ? 'UPDATE_STUDENT' : 'ADD_STUDENT', data);
               if(ok) { setStudentToEdit(null); setStudentToAdd(false); }
-            }} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <input name="nis" defaultValue={studentToEdit?.nis} readOnly={!!studentToEdit} required placeholder="NIS" className="w-full px-5 py-3.5 bg-slate-50 border rounded-2xl text-sm font-bold outline-none" />
-                <input name="password" defaultValue={studentToEdit?.password || 'password123'} required placeholder="PASSWORD" className="w-full px-5 py-3.5 bg-slate-50 border rounded-2xl text-sm font-bold outline-none" />
+            }} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nomor Induk Siswa (NIS)</label>
+                  <input 
+                    name="nis" 
+                    defaultValue={studentToEdit?.nis} 
+                    readOnly={!!studentToEdit} 
+                    required 
+                    placeholder="Contoh: 12345" 
+                    className={`w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all ${studentToEdit ? 'opacity-60 cursor-not-allowed bg-slate-100' : ''}`} 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password Login</label>
+                  <input 
+                    name="password" 
+                    defaultValue={studentToEdit?.password || 'password123'} 
+                    required 
+                    placeholder="Password" 
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" 
+                  />
+                </div>
               </div>
-              <input name="name" defaultValue={studentToEdit?.name} required placeholder="NAMA LENGKAP SISWA" className="w-full px-5 py-3.5 bg-slate-50 border rounded-2xl text-sm font-bold outline-none uppercase" />
-              <div className="grid grid-cols-3 gap-3">
-                <select name="class" defaultValue={studentToEdit?.class || '7'} className="px-4 py-3.5 bg-slate-50 border rounded-2xl text-sm font-bold outline-none">
-                  <option value="7">Kls 7</option><option value="8">Kls 8</option><option value="9">Kls 9</option>
-                </select>
-                <select name="roomId" defaultValue={studentToEdit?.roomId || ''} className="px-4 py-3.5 bg-slate-50 border rounded-2xl text-sm font-bold outline-none">
-                  <option value="">Tanpa Ruang</option>
-                  {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                </select>
-                <select name="status" defaultValue={studentToEdit?.status || StudentStatus.BELUM_MASUK} className="px-4 py-3.5 bg-slate-50 border rounded-2xl text-sm font-bold outline-none">
-                  {Object.values(StudentStatus).map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-                </select>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nama Lengkap Siswa</label>
+                <input 
+                  name="name" 
+                  defaultValue={studentToEdit?.name} 
+                  required 
+                  placeholder="NAMA SESUAI IJAZAH / DAPODIK" 
+                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none uppercase focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" 
+                />
               </div>
-              <div className="pt-6 flex flex-col gap-2">
-                 <button type="submit" disabled={isProcessing} className="w-full bg-indigo-600 disabled:bg-indigo-400 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg">SIMPAN DATA</button>
-                 <button type="button" onClick={() => { setStudentToEdit(null); setStudentToAdd(false); }} className="w-full text-slate-400 py-2 font-bold uppercase text-[10px]">Batal</button>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Pilih Kelas</label>
+                  <select name="class" defaultValue={studentToEdit?.class || '7'} className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-indigo-500 appearance-none transition-all">
+                    <option value="7">Kelas 7</option>
+                    <option value="8">Kelas 8</option>
+                    <option value="9">Kelas 9</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Penempatan Ruang</label>
+                  <select name="roomId" defaultValue={studentToEdit?.roomId || ''} className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-indigo-500 appearance-none transition-all">
+                    <option value="">Tanpa Ruang</option>
+                    {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status Ujian</label>
+                  <select name="status" defaultValue={studentToEdit?.status || StudentStatus.BELUM_MASUK} className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-indigo-500 appearance-none transition-all">
+                    {Object.values(StudentStatus).map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="pt-8 flex flex-col gap-3">
+                 <button type="submit" disabled={isProcessing} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-100 transition-all flex items-center justify-center gap-3 active:scale-[0.98]">
+                    {isProcessing && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
+                    {studentToEdit ? 'SIMPAN PERUBAHAN DATA' : 'TAMBAHKAN KE DATABASE'}
+                 </button>
+                 <button type="button" onClick={() => { setStudentToEdit(null); setStudentToAdd(false); }} className="w-full text-slate-400 py-2 font-bold uppercase text-[10px] tracking-widest hover:text-slate-600 transition-colors">Batal & Tutup</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ROOM MODAL */}
+      {(showAddRoom || roomToEdit) && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-lg p-8 md:p-12 rounded-[3rem] shadow-2xl relative animate-in zoom-in-95">
+            <button onClick={() => { setShowAddRoom(false); setRoomToEdit(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-red-500 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            
+            <div className="mb-10">
+              <h3 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter leading-none">
+                {roomToEdit ? 'Ubah Data Ruang' : 'Tambah Ruang Baru'}
+              </h3>
+              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2">
+                Akses Proktor & Kapasitas Peserta
+              </p>
+            </div>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (isProcessing) return;
+              const f = new FormData(e.currentTarget);
+              const data = {
+                id: roomToEdit ? roomToEdit.id : Date.now().toString(),
+                name: (f.get('name') as string).toUpperCase().trim(),
+                capacity: Number(f.get('capacity')),
+                username: (f.get('username') as string).trim(),
+                password: (f.get('password') as string).trim()
+              };
+              const ok = await onAction(roomToEdit ? 'UPDATE_ROOM' : 'ADD_ROOM', data);
+              if(ok) { setShowAddRoom(false); setRoomToEdit(null); }
+            }} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nama Ruang</label>
+                <input 
+                  name="name" 
+                  defaultValue={roomToEdit?.name} 
+                  required 
+                  placeholder="CONTOH: RUANG 01" 
+                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none uppercase focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" 
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Username Login</label>
+                  <input 
+                    name="username" 
+                    defaultValue={roomToEdit?.username} 
+                    required 
+                    placeholder="ruang01" 
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password Login</label>
+                  <input 
+                    name="password" 
+                    defaultValue={roomToEdit?.password} 
+                    required 
+                    placeholder="password" 
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" 
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Kapasitas Maksimal (Peserta)</label>
+                <input 
+                  name="capacity" 
+                  type="number"
+                  defaultValue={roomToEdit?.capacity || 40} 
+                  required 
+                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" 
+                />
+              </div>
+
+              <div className="pt-8 flex flex-col gap-3">
+                 <button type="submit" disabled={isProcessing} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-100 transition-all flex items-center justify-center gap-3 active:scale-[0.98]">
+                    {isProcessing && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
+                    {roomToEdit ? 'SIMPAN PERUBAHAN RUANG' : 'TAMBAHKAN RUANG'}
+                 </button>
+                 <button type="button" onClick={() => { setShowAddRoom(false); setRoomToEdit(null); }} className="w-full text-slate-400 py-2 font-bold uppercase text-[10px] tracking-widest hover:text-slate-600 transition-colors">Batal & Tutup</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE ROOM MODAL */}
+      {roomToDelete && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm p-10 rounded-[3rem] shadow-2xl animate-in zoom-in-95 duration-200 text-center border-t-8 border-red-600">
+            <h3 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tighter">Hapus Ruang?</h3>
+            <p className="text-slate-500 text-[11px] font-bold uppercase mb-8 leading-relaxed px-4">Ruang <span className="text-red-600 font-black">{roomToDelete.name}</span> akan dihapus permanen.</p>
+            <div className="flex flex-col gap-3">
+              <button disabled={isProcessing} onClick={async () => { const ok = await onAction('DELETE_ROOM', { id: roomToDelete.id }); if(ok) setRoomToDelete(null); }} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-xl transition-all">
+                {isProcessing ? 'Menghapus...' : 'Ya, Hapus'}
+              </button>
+              <button onClick={() => setRoomToDelete(null)} disabled={isProcessing} className="w-full text-slate-400 font-bold py-2 text-[10px] uppercase">Batal</button>
+            </div>
           </div>
         </div>
       )}

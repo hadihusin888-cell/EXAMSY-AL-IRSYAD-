@@ -1,4 +1,6 @@
 
+// Fix: Use the standard modular import for Firebase v9+ from 'firebase/app'.
+// In some environments, if 'initializeApp' is reported as missing, ensure the package is correctly resolved.
 import { initializeApp } from "firebase/app";
 import { 
   getFirestore, 
@@ -49,18 +51,19 @@ export const syncData = (
   onSessionsUpdate: (data: ExamSession[]) => void,
   onRoomsUpdate: (data: Room[]) => void
 ) => {
+  // Use unique variable names in map to avoid shadowing the 'doc' function imported from firestore
   const unsubStudents = onSnapshot(collection(db, "students"), (snapshot) => {
-    const data = snapshot.docs.map(doc => doc.data() as Student);
+    const data = snapshot.docs.map(sDoc => sDoc.data() as Student);
     onStudentsUpdate(data);
   });
 
   const unsubSessions = onSnapshot(collection(db, "sessions"), (snapshot) => {
-    const data = snapshot.docs.map(doc => doc.data() as ExamSession);
+    const data = snapshot.docs.map(sDoc => sDoc.data() as ExamSession);
     onSessionsUpdate(data);
   });
 
   const unsubRooms = onSnapshot(collection(db, "rooms"), (snapshot) => {
-    const data = snapshot.docs.map(doc => doc.data() as Room);
+    const data = snapshot.docs.map(sDoc => sDoc.data() as Room);
     onRoomsUpdate(data);
   });
 
