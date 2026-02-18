@@ -1,4 +1,4 @@
-// Fix: Use standard modular import for Firebase 9+
+
 import { initializeApp } from "firebase/app";
 import { 
   getFirestore, 
@@ -14,28 +14,29 @@ import { Student, ExamSession, Room } from "../types";
 
 /**
  * Firebase Configuration.
- * The API key is obtained from process.env.API_KEY as per the instructions.
+ * GANTI nilai di bawah ini dengan data dari Firebase Console proyek baru Anda.
  */
 const firebaseConfig = {
-  apiKey: process.env.API_KEY,
-  authDomain: "examsy-al-irsyad.firebaseapp.com",
-  projectId: "examsy-al-irsyad",
-  storageBucket: "examsy-al-irsyad.firebasestorage.app",
-  messagingSenderId: "1086198390639",
-  appId: "1:1086198390639:web:78fb6ab78df0a062b4129a"
+  apiKey: "AIzaSyDvx0AIwIkc1lfeDCNpKQ1GDbYiJT5-5v4",
+  authDomain: "examsy-baru.firebaseapp.com",
+  projectId: "examsy-baru",
+  storageBucket: "examsy-baru.firebasestorage.app",
+  messagingSenderId: "734881817348",
+  appId: "1:734881817348:web:b2f327e57ff58f17662651",
+  measurementId: "G-S2FKT3XVS6"
 };
 
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Enable Offline Persistence for semi-online functionality
+// Enable Offline Persistence untuk fitur semi-online
 if (typeof window !== 'undefined') {
   enableIndexedDbPersistence(db).catch((err) => {
     if (err.code === 'failed-precondition') {
-      console.warn("Multiple tabs open, persistence can only be enabled in one tab at a time.");
+      console.warn("Persistensi gagal: Tab ganda terbuka.");
     } else if (err.code === 'unimplemented') {
-      console.warn("The current browser does not support persistence.");
+      console.warn("Browser ini tidak mendukung persistensi offline.");
     }
   });
 }
@@ -48,19 +49,16 @@ export const syncData = (
   onSessionsUpdate: (data: ExamSession[]) => void,
   onRoomsUpdate: (data: Room[]) => void
 ) => {
-  // Real-time listener for students
   const unsubStudents = onSnapshot(collection(db, "students"), (snapshot) => {
     const data = snapshot.docs.map(doc => doc.data() as Student);
     onStudentsUpdate(data);
   });
 
-  // Real-time listener for exam sessions
   const unsubSessions = onSnapshot(collection(db, "sessions"), (snapshot) => {
     const data = snapshot.docs.map(doc => doc.data() as ExamSession);
     onSessionsUpdate(data);
   });
 
-  // Real-time listener for rooms
   const unsubRooms = onSnapshot(collection(db, "rooms"), (snapshot) => {
     const data = snapshot.docs.map(doc => doc.data() as Room);
     onRoomsUpdate(data);
@@ -74,14 +72,13 @@ export const syncData = (
 };
 
 /**
- * Performs database actions using Firestore.
+ * Performa database actions menggunakan Firestore.
  */
 export const dbAction = async (action: string, payload: any): Promise<boolean> => {
   try {
     switch (action) {
       case 'ADD_STUDENT':
       case 'UPDATE_STUDENT':
-        // Use NIS as Document ID to prevent duplicates
         await setDoc(doc(db, "students", String(payload.nis)), payload, { merge: true });
         break;
       
@@ -117,12 +114,11 @@ export const dbAction = async (action: string, payload: any): Promise<boolean> =
         break;
 
       default:
-        console.warn("Action not recognized:", action);
         return false;
     }
     return true;
   } catch (err) {
-    console.error("Firebase DB Action Error:", err);
+    console.error("Firebase Action Error:", err);
     return false;
   }
 };
