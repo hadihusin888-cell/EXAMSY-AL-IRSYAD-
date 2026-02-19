@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useMemo } from 'react';
-import { ExamSession, Student, StudentStatus, Room } from '../types';
+import { ExamSession, Student, StudentStatus, Room, Question } from '../types';
 
 interface AdminDashboardProps {
   sessions: ExamSession[];
@@ -27,11 +27,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [studentToAdd, setStudentToAdd] = useState(false);
   const [selectedNis, setSelectedNis] = useState<string[]>([]);
-  const [showBulkModal, setShowBulkModal] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [showTemplatePreview, setShowTemplatePreview] = useState(false);
-  const [targetBulkRoomId, setTargetBulkRoomId] = useState('KEEP');
-  const [targetBulkStatus, setTargetBulkStatus] = useState('KEEP');
 
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [roomToEdit, setRoomToEdit] = useState<Room | null>(null);
@@ -123,19 +120,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     reader.readAsText(file);
   };
 
-  const handleBulkUpdate = async () => {
-    const updates: any = {};
-    if (targetBulkRoomId !== 'KEEP') updates.roomId = targetBulkRoomId;
-    if (targetBulkStatus !== 'KEEP') updates.status = targetBulkStatus;
-    if (Object.keys(updates).length > 0) {
-      const ok = await onAction('BULK_UPDATE_STUDENTS', { selectedNis, updates });
-      if (ok) {
-        setShowBulkModal(false);
-        setSelectedNis([]);
-      }
-    }
-  };
-
   const handleBulkDelete = async () => {
     let success = 0;
     for (const nis of selectedNis) {
@@ -210,7 +194,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                <div className="mb-6 bg-indigo-600 text-white px-8 py-4 rounded-2xl flex items-center justify-between animate-in slide-in-from-top-4 shadow-xl z-10 sticky top-0">
                   <span className="text-xs font-black uppercase tracking-widest">{selectedNis.length} Siswa Terpilih</span>
                   <div className="flex gap-4">
-                     <button onClick={() => setShowBulkModal(true)} className="bg-white text-indigo-600 px-6 py-2 rounded-xl font-black text-[10px] uppercase">Aksi Massal</button>
                      <button onClick={() => setShowBulkDeleteConfirm(true)} className="bg-red-500 text-white px-6 py-2 rounded-xl font-black text-[10px] uppercase hover:bg-red-600">Hapus Terpilih</button>
                      <button onClick={() => setSelectedNis([])} className="text-white/70 font-black text-[10px] uppercase underline">Batal</button>
                   </div>
@@ -269,7 +252,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         )}
 
-        {/* TAB SESSIONS */}
         {activeTab === 'SESSIONS' && (
            <div className="max-w-7xl mx-auto">
              <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-4">
@@ -307,7 +289,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
            </div>
         )}
 
-        {/* TAB ROOMS */}
         {activeTab === 'ROOMS' && (
            <div className="max-w-7xl mx-auto">
               <div className="flex justify-between items-end mb-10">
@@ -344,7 +325,108 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         )}
       </main>
 
-      {/* MODALS */}
+      {/* SESSION MODAL (ADD/EDIT) */}
+      {(showAddSession || sessionToEdit) && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-xl p-8 md:p-12 rounded-[3rem] shadow-2xl relative animate-in zoom-in-95">
+            <button onClick={() => { setShowAddSession(false); setSessionToEdit(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-red-500 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <div className="mb-10">
+              <h3 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter leading-none">
+                {sessionToEdit ? 'Ubah Sesi Ujian' : 'Tambah Sesi Baru'}
+              </h3>
+              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2">
+                Identitas Ujian & Keamanan Sesi
+              </p>
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (isProcessing) return;
+              const f = new FormData(e.currentTarget);
+              const data = {
+                id: sessionToEdit ? sessionToEdit.id : Date.now().toString(),
+                name: (f.get('name') as string).toUpperCase().trim(),
+                class: f.get('class') as string,
+                pin: (f.get('pin') as string).toUpperCase().trim(),
+                durationMinutes: Number(f.get('duration')),
+                pdfUrl: (f.get('pdfUrl') as string).trim(),
+                isActive: !!f.get('isActive'),
+                questions: sessionToEdit ? sessionToEdit.questions : []
+              };
+              const ok = await onAction(sessionToEdit ? 'UPDATE_SESSION' : 'ADD_SESSION', data);
+              if(ok) { setShowAddSession(false); setSessionToEdit(null); }
+            }} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nama Mata Pelajaran / Ujian</label>
+                <input name="name" defaultValue={sessionToEdit?.name} required placeholder="Contoh: MATEMATIKA PAT" className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none uppercase focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" />
+              </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Pilih Kelas</label>
+                  <select name="class" defaultValue={sessionToEdit?.class || '7'} className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-indigo-500 appearance-none transition-all">
+                    <option value="7">Kelas 7</option>
+                    <option value="8">Kelas 8</option>
+                    <option value="9">Kelas 9</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">PIN Sesi (4-6 Karakter)</label>
+                  <input name="pin" defaultValue={sessionToEdit?.pin} required maxLength={6} placeholder="ABCD" className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-center uppercase tracking-widest outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" />
+                </div>
+              </div>
+
+              {/* TOGGLE ON/OFF SESI */}
+              <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Status Sesi</label>
+                  <span className="text-xs font-bold text-slate-700 uppercase">Aktifkan Sesi Sekarang?</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input name="isActive" type="checkbox" defaultChecked={sessionToEdit?.isActive} className="sr-only peer" />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Durasi (Menit)</label>
+                  <input name="duration" type="number" defaultValue={sessionToEdit?.durationMinutes || 90} required className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">PDF URL (Google Drive)</label>
+                  <input name="pdfUrl" defaultValue={sessionToEdit?.pdfUrl} placeholder="https://drive.google.com/..." className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" />
+                </div>
+              </div>
+              <div className="pt-8 flex flex-col gap-3">
+                 <button type="submit" disabled={isProcessing} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-100 transition-all flex items-center justify-center gap-3">
+                    {isProcessing && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
+                    {sessionToEdit ? 'SIMPAN PERUBAHAN SESI' : 'BUAT SESI UJIAN'}
+                 </button>
+                 <button type="button" onClick={() => { setShowAddSession(false); setSessionToEdit(null); }} className="w-full text-slate-400 py-2 font-bold uppercase text-[10px] tracking-widest hover:text-slate-600 transition-colors">Batal</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* SESSION DELETE MODAL */}
+      {sessionToDelete && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm p-10 rounded-[3rem] shadow-2xl animate-in zoom-in-95 duration-200 text-center border-t-8 border-red-600">
+            <h3 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tighter">Hapus Sesi?</h3>
+            <p className="text-slate-500 text-[11px] font-bold uppercase mb-8 leading-relaxed px-4">Seluruh data sesi ujian ini akan dihapus permanen.</p>
+            <div className="flex flex-col gap-3">
+              <button disabled={isProcessing} onClick={async () => { const ok = await onAction('DELETE_SESSION', { id: sessionToDelete }); if(ok) setSessionToDelete(null); }} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-xl transition-all">
+                {isProcessing ? 'Menghapus...' : 'Ya, Hapus Sesi'}
+              </button>
+              <button onClick={() => setSessionToDelete(null)} disabled={isProcessing} className="w-full text-slate-400 font-bold py-2 text-[10px] uppercase">Batal</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STUDENT MODALS (ADD/EDIT/DELETE) */}
       {studentToDelete && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-sm p-10 rounded-[3rem] shadow-2xl animate-in zoom-in-95 duration-200 text-center border-t-8 border-red-600">
@@ -417,7 +499,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* STUDENT MODAL */}
       {(studentToEdit || studentToAdd) && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-xl p-8 md:p-12 rounded-[3rem] shadow-2xl relative animate-in zoom-in-95">
@@ -452,38 +533,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nomor Induk Siswa (NIS)</label>
-                  <input 
-                    name="nis" 
-                    defaultValue={studentToEdit?.nis} 
-                    readOnly={!!studentToEdit} 
-                    required 
-                    placeholder="Contoh: 12345" 
-                    className={`w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all ${studentToEdit ? 'opacity-60 cursor-not-allowed bg-slate-100' : ''}`} 
-                  />
+                  <input name="nis" defaultValue={studentToEdit?.nis} readOnly={!!studentToEdit} required placeholder="Contoh: 12345" className={`w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all ${studentToEdit ? 'opacity-60 cursor-not-allowed bg-slate-100' : ''}`} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password Login</label>
-                  <input 
-                    name="password" 
-                    defaultValue={studentToEdit?.password || 'password123'} 
-                    required 
-                    placeholder="Password" 
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" 
-                  />
+                  <input name="password" defaultValue={studentToEdit?.password || 'password123'} required placeholder="Password" className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" />
                 </div>
               </div>
-
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nama Lengkap Siswa</label>
-                <input 
-                  name="name" 
-                  defaultValue={studentToEdit?.name} 
-                  required 
-                  placeholder="NAMA SESUAI IJAZAH / DAPODIK" 
-                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none uppercase focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" 
-                />
+                <input name="name" defaultValue={studentToEdit?.name} required placeholder="NAMA SESUAI IJAZAH / DAPODIK" className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none uppercase focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" />
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Pilih Kelas</label>
@@ -507,7 +567,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </select>
                 </div>
               </div>
-
               <div className="pt-8 flex flex-col gap-3">
                  <button type="submit" disabled={isProcessing} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-100 transition-all flex items-center justify-center gap-3 active:scale-[0.98]">
                     {isProcessing && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
@@ -520,14 +579,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* ROOM MODAL */}
+      {/* ROOM MODALS (ADD/EDIT/DELETE) */}
       {(showAddRoom || roomToEdit) && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-lg p-8 md:p-12 rounded-[3rem] shadow-2xl relative animate-in zoom-in-95">
             <button onClick={() => { setShowAddRoom(false); setRoomToEdit(null); }} className="absolute top-8 right-8 text-slate-400 hover:text-red-500 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
-            
             <div className="mb-10">
               <h3 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter leading-none">
                 {roomToEdit ? 'Ubah Data Ruang' : 'Tambah Ruang Baru'}
@@ -536,7 +594,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 Akses Proktor & Kapasitas Peserta
               </p>
             </div>
-
             <form onSubmit={async (e) => {
               e.preventDefault();
               if (isProcessing) return;
@@ -553,49 +610,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             }} className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nama Ruang</label>
-                <input 
-                  name="name" 
-                  defaultValue={roomToEdit?.name} 
-                  required 
-                  placeholder="CONTOH: RUANG 01" 
-                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none uppercase focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" 
-                />
+                <input name="name" defaultValue={roomToEdit?.name} required placeholder="CONTOH: RUANG 01" className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none uppercase focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" />
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Username Login</label>
-                  <input 
-                    name="username" 
-                    defaultValue={roomToEdit?.username} 
-                    required 
-                    placeholder="ruang01" 
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" 
-                  />
+                  <input name="username" defaultValue={roomToEdit?.username} required placeholder="ruang01" className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password Login</label>
-                  <input 
-                    name="password" 
-                    defaultValue={roomToEdit?.password} 
-                    required 
-                    placeholder="password" 
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" 
-                  />
+                  <input name="password" defaultValue={roomToEdit?.password} required placeholder="password" className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" />
                 </div>
               </div>
-
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Kapasitas Maksimal (Peserta)</label>
-                <input 
-                  name="capacity" 
-                  type="number"
-                  defaultValue={roomToEdit?.capacity || 40} 
-                  required 
-                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" 
-                />
+                <input name="capacity" type="number" defaultValue={roomToEdit?.capacity || 40} required className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" />
               </div>
-
               <div className="pt-8 flex flex-col gap-3">
                  <button type="submit" disabled={isProcessing} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-100 transition-all flex items-center justify-center gap-3 active:scale-[0.98]">
                     {isProcessing && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
@@ -608,7 +638,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* DELETE ROOM MODAL */}
       {roomToDelete && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-sm p-10 rounded-[3rem] shadow-2xl animate-in zoom-in-95 duration-200 text-center border-t-8 border-red-600">
