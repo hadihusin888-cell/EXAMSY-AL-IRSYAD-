@@ -123,6 +123,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     reader.readAsText(file);
   };
 
+  const downloadTemplate = () => {
+    const headers = "NIS,NAMA,KELAS,RUANG,PASSWORD,STATUS";
+    const sampleData = "12345,AHMAD FULAN,7,RUANG 01,password123,BELUM_MASUK";
+    const csvContent = `${headers}\n${sampleData}`;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "template_upload_siswa.csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleBulkDelete = async () => {
     let success = 0;
     for (const nis of selectedNis) {
@@ -246,6 +261,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </select>
                   </div>
                   <button onClick={() => setStudentToAdd(true)} className="bg-indigo-600 text-white px-5 py-3.5 rounded-2xl font-black text-[10px] uppercase shadow-lg active:scale-95 transition-all"> + Siswa </button>
+                  <button onClick={downloadTemplate} className="bg-emerald-600 text-white px-5 py-3.5 rounded-2xl font-black text-[10px] uppercase transition-all shadow-lg active:scale-95">Template</button>
                   <button onClick={() => fileInputRef.current?.click()} className="bg-slate-900 text-white px-5 py-3.5 rounded-2xl font-black text-[10px] uppercase transition-all shadow-lg active:scale-95">Impor CSV</button>
                   <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleImportCSV} />
                 </div>
