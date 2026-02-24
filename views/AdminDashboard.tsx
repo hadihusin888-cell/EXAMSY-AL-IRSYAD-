@@ -613,6 +613,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       )}
 
       {/* DELETE CONFIRMATIONS AND OTHER MODALS... */}
+      {sessionToDelete && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm p-10 rounded-[3rem] shadow-2xl animate-in zoom-in-95 duration-200 text-center border-t-8 border-red-600">
+            <h3 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tighter">Hapus Sesi?</h3>
+            <p className="text-slate-500 text-[11px] font-bold uppercase mb-8 leading-relaxed px-4">Sesi ujian ini akan dihapus secara permanen dari database.</p>
+            <div className="flex flex-col gap-3">
+              <button 
+                disabled={isProcessing} 
+                onClick={async () => { 
+                  const ok = await onAction('DELETE_SESSION', { id: sessionToDelete }); 
+                  if(ok) setSessionToDelete(null); 
+                }} 
+                className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-xl transition-all"
+              >
+                {isProcessing ? 'Menghapus...' : 'Ya, Hapus Sesi'}
+              </button>
+              <button onClick={() => setSessionToDelete(null)} disabled={isProcessing} className="w-full text-slate-400 font-bold py-2 text-[10px] uppercase tracking-widest transition-colors">Batal</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showBulkDeleteConfirm && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-sm p-10 rounded-[3rem] shadow-2xl animate-in zoom-in-95 duration-200 text-center border-t-8 border-red-600">
