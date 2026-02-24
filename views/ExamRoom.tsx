@@ -162,16 +162,28 @@ const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onFinis
     if (!hasConsented || isBlocked) return;
     const handleVisibilityChange = () => { if (document.hidden) triggerViolation("App Switched"); };
     const handleBlur = () => {
-      // Tunggu sebentar sebelum trigger violation untuk menghindari false positive pada iOS
+      // Pengetatan deteksi: Kurangi delay untuk respon lebih cepat terhadap panel sistem
       setTimeout(() => {
-        if (!document.hasFocus()) triggerViolation("Window Blur");
-      }, 500);
+        if (!document.hasFocus()) triggerViolation("Window Blur / Quick Settings");
+      }, 200);
     };
+    
+    // Deteksi swipe dari area atas layar (Status Bar / Quick Settings)
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches[0].clientY < 25) {
+        // Jika sentuhan dimulai di 25px teratas, kemungkinan besar akan menarik panel
+        // Kita tidak bisa menghentikan OS, tapi bisa memberikan feedback visual/peringatan
+        resetZoomTimer();
+      }
+    };
+
     window.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('blur', handleBlur);
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
     return () => {
       window.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('touchstart', handleTouchStart);
     };
   }, [hasConsented, triggerViolation, isBlocked]);
 
@@ -200,6 +212,9 @@ const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onFinis
       onClick={resetZoomTimer}
       onTouchStart={resetZoomTimer}
     >
+      {/* ANTI PULL-DOWN ZONE (Android Security) */}
+      <div className="fixed top-0 left-0 right-0 h-2 z-[9999] touch-none pointer-events-none bg-transparent"></div>
+
       <video 
         ref={videoWakeLockRef} 
         className="hidden" 
@@ -234,7 +249,7 @@ const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onFinis
             </div>
             <h2 className="text-2xl font-black text-slate-900 mb-4 uppercase tracking-tight leading-none">Konfirmasi Ujian</h2>
             <p className="text-slate-600 text-sm font-medium leading-relaxed mb-10">
-              Sistem akan mengaktifkan <span className="text-indigo-600 font-bold">Mode Proteksi Layar</span>. Pastikan perangkat memiliki daya yang cukup dan koneksi internet stabil selama pengerjaan.
+              Sistem akan mengaktifkan <span className="text-indigo-600 font-bold">Mode Proteksi Layar</span>. Dilarang keras <span className="text-red-600 font-bold">menurunkan panel notifikasi/pengaturan</span> atau berpindah aplikasi selama ujian berlangsung.
             </p>
             <button onClick={startPersistence} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-5 rounded-2xl font-black text-sm md:text-base uppercase tracking-[0.15em] shadow-xl shadow-indigo-100 transition-all active:scale-95">
               Mulai Ujian Sekarang
