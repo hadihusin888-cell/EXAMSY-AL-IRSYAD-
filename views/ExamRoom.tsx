@@ -144,19 +144,30 @@ const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onFinis
   }, [triggerViolation]);
 
   useEffect(() => {
-    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    const handleFsChange = () => {
+      const isFs = !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
+      setIsFullscreen(isFs);
+      
+      // Jika sudah mulai ujian (hasConsented) dan keluar dari fullscreen, anggap pelanggaran
+      if (hasConsented && !isFs && !isBlocked) {
+        triggerViolation("Keluar Mode Fullscreen");
+      }
+    };
+
     document.addEventListener('fullscreenchange', handleFsChange);
     document.addEventListener('webkitfullscreenchange', handleFsChange);
+    
     const timer = setInterval(() => {
       if (hasConsented && timeLeft > 0 && !isBlocked) setTimeLeft(prev => prev - 1);
     }, 1000);
+
     return () => {
       document.removeEventListener('fullscreenchange', handleFsChange);
       document.removeEventListener('webkitfullscreenchange', handleFsChange);
       clearInterval(timer);
       releaseWakeLock();
     };
-  }, [hasConsented, timeLeft, releaseWakeLock, isBlocked]);
+  }, [hasConsented, timeLeft, releaseWakeLock, isBlocked, triggerViolation]);
 
   useEffect(() => {
     if (!hasConsented || isBlocked) return;
@@ -283,7 +294,7 @@ const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onFinis
         </div>
       </header>
 
-      <main className={`flex-1 bg-slate-900 relative transition-all duration-300 overflow-hidden ${isFocusLost || isBlocked ? 'blur-3xl pointer-events-none' : ''}`}>
+      <main className={`flex-1 bg-slate-900 relative transition-all duration-300 overflow-hidden ${(isFocusLost || isBlocked || (hasConsented && !isFullscreen)) ? 'blur-3xl pointer-events-none' : ''}`}>
         <div className="w-full h-full overflow-auto scrollbar-hide">
           <div className="w-full h-full relative transition-transform duration-300 ease-out origin-top" style={{ transform: `scale(${zoomLevel})` }}>
             <div className="relative w-full h-full overflow-hidden" style={{ marginTop: `-${CLIPPING_TOP}px`, marginLeft: `-${CLIPPING_SIDE}px`, width: `calc(100% + ${CLIPPING_SIDE * 2}px)`, height: `calc(100% + ${CLIPPING_TOP + CLIPPING_BOTTOM}px)` }}>
@@ -320,9 +331,22 @@ const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onFinis
       {isFocusLost && hasConsented && !isBlocked && (
         <div className="fixed inset-0 z-[5000] bg-slate-950/95 flex items-center justify-center p-8 backdrop-blur-xl">
           <div className="bg-white w-full max-w-[360px] p-10 rounded-[2.5rem] text-center shadow-2xl border-b-8 border-red-500 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.268 15c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
             <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight leading-none">Terdeteksi Pelanggaran</h3>
-            <p className="text-slate-600 text-sm font-bold uppercase mb-10 leading-relaxed">Sistem mendeteksi aktivitas luar aplikasi. Pelanggaran: {violations} dari {MAX_VIOLATIONS}.</p>
-            <button onClick={() => { setIsFocusLost(false); startPersistence(); }} className="w-full py-5 bg-slate-900 hover:bg-black text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all">Kembali ke Ujian</button>
+            <p className="text-slate-600 text-sm font-bold uppercase mb-6 leading-relaxed">
+              Sistem mendeteksi aktivitas luar aplikasi atau keluar dari mode fullscreen.
+            </p>
+            <div className="bg-slate-50 p-4 rounded-2xl mb-8">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Sisa Kesempatan</p>
+              <p className="text-2xl font-black text-red-600">{MAX_VIOLATIONS - violations} / {MAX_VIOLATIONS}</p>
+            </div>
+            <button onClick={() => { setIsFocusLost(false); startPersistence(); }} className="w-full py-5 bg-slate-900 hover:bg-black text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all">
+              Masuk Fullscreen & Lanjut
+            </button>
           </div>
         </div>
       )}
