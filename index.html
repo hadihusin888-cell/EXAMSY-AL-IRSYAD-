@@ -10,7 +10,6 @@
     <title>Examsy - Modern Exam Platform</title>
     
     <link rel="manifest" href="/manifest.json">
-    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
@@ -35,22 +34,15 @@
             transform: translateZ(0);
         }
     </style>
-<script type="importmap">
-{
-  "imports": {
-    "vite": "https://esm.sh/vite@^7.3.1",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "firebase/": "https://esm.sh/firebase@^12.8.0/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.37.0",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
-  }
-}
-</script>
 </head>
 <body>
     <div id="root"></div>
+    <noscript>
+        <div style="padding: 20px; text-align: center; font-family: sans-serif;">
+            <h2>Browser Tidak Mendukung</h2>
+            <p>Aplikasi ini memerlukan JavaScript untuk berjalan. Silakan aktifkan JavaScript atau gunakan browser yang lebih modern.</p>
+        </div>
+    </noscript>
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>
