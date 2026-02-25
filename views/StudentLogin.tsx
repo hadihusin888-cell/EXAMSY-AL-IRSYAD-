@@ -18,8 +18,26 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ sessions, students, onLogin
     studentClass: '',
     pin: ''
   });
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+
+  // Load saved credentials on mount
+  React.useEffect(() => {
+    const savedNis = localStorage.getItem('examsy_student_nis');
+    const savedPass = localStorage.getItem('examsy_student_pass');
+    const savedClass = localStorage.getItem('examsy_student_class');
+    
+    if (savedNis && savedPass) {
+      setFormData(prev => ({
+        ...prev,
+        nis: savedNis,
+        password: savedPass,
+        studentClass: savedClass || ''
+      }));
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,6 +58,17 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ sessions, students, onLogin
     if (!student) {
       setError('NIS atau Password Anda tidak terdaftar.');
       return;
+    }
+
+    // Simpan kredensial jika "Ingat Saya" dicentang
+    if (rememberMe) {
+      localStorage.setItem('examsy_student_nis', inputNis);
+      localStorage.setItem('examsy_student_pass', inputPass);
+      localStorage.setItem('examsy_student_class', inputClass);
+    } else {
+      localStorage.removeItem('examsy_student_nis');
+      localStorage.removeItem('examsy_student_pass');
+      localStorage.removeItem('examsy_student_class');
     }
 
     // 2. Cek Status Akun
@@ -154,6 +183,19 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ sessions, students, onLogin
                 )}
               </button>
             </div>
+          </div>
+
+          <div className="flex items-center gap-2 px-1 py-1">
+            <input 
+              type="checkbox" 
+              id="rememberMe"
+              checked={rememberMe}
+              onChange={e => setRememberMe(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-200 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
+            />
+            <label htmlFor="rememberMe" className="text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer select-none">
+              Ingat Saya
+            </label>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
