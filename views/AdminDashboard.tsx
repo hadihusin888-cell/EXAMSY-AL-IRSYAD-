@@ -701,7 +701,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 class: f.get('class') as string,
                 roomId: f.get('roomId') as string,
                 password: (f.get('password') as string) || "password123",
-                status: newStatus
+                status: newStatus,
+                violations: studentToEdit ? (studentToEdit.violations || 0) : 0
               };
               
               // Reset pelanggaran jika status diubah menjadi BELUM_MASUK
