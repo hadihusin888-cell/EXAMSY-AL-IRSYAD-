@@ -23,6 +23,24 @@ const App: React.FC = () => {
   const [sessions, setSessions] = useState<ExamSession[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
 
+  // Effect untuk mengecek session yang tersimpan di localStorage
+  useEffect(() => {
+    const savedAuth = localStorage.getItem('examsy_auth');
+    if (savedAuth) {
+      try {
+        const auth = JSON.parse(savedAuth);
+        if (auth.role === 'ADMIN') {
+          setView('ADMIN_DASHBOARD');
+        } else if (auth.role === 'PROCTOR' && auth.roomId) {
+          // Kita akan set view ke PROCTOR_DASHBOARD nanti setelah rooms terisi
+          // Untuk sementara kita simpan roomId-nya
+        }
+      } catch (e) {
+        console.error("Error parsing saved auth", e);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     // Sinkronisasi data real-time dari Firestore
     const unsub = syncData(
@@ -36,6 +54,19 @@ const App: React.FC = () => {
       },
       (roomData) => {
         setRooms(roomData);
+        
+        // Cek jika ada session proktor yang tersimpan
+        const savedAuth = localStorage.getItem('examsy_auth');
+        if (savedAuth) {
+          const auth = JSON.parse(savedAuth);
+          if (auth.role === 'PROCTOR' && auth.roomId) {
+            const room = roomData.find(r => r.id === auth.roomId);
+            if (room) {
+              setActiveRoom(room);
+              setView('PROCTOR_DASHBOARD');
+            }
+          }
+        }
       }
     );
 
@@ -47,6 +78,12 @@ const App: React.FC = () => {
     const success = await dbAction(action, payload);
     setIsProcessing(false);
     return success;
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('examsy_auth');
+    setActiveRoom(null);
+    setView('STUDENT_LOGIN');
   };
 
   const handleStudentLogin = async (student: Student, session: ExamSession) => {
@@ -98,8 +135,14 @@ const App: React.FC = () => {
           <AdminLogin 
             rooms={rooms} 
             onLogin={(role, r) => { 
-              if(role === 'ADMIN') setView('ADMIN_DASHBOARD'); 
-              else { setActiveRoom(r!); setView('PROCTOR_DASHBOARD'); } 
+              if(role === 'ADMIN') {
+                localStorage.setItem('examsy_auth', JSON.stringify({ role: 'ADMIN' }));
+                setView('ADMIN_DASHBOARD'); 
+              } else { 
+                localStorage.setItem('examsy_auth', JSON.stringify({ role: 'PROCTOR', roomId: r!.id }));
+                setActiveRoom(r!); 
+                setView('PROCTOR_DASHBOARD'); 
+              } 
             }} 
             onBack={() => setView('STUDENT_LOGIN')} 
           />
@@ -112,7 +155,7 @@ const App: React.FC = () => {
             rooms={rooms} 
             isSyncing={isSyncing} 
             isProcessing={isProcessing} 
-            onLogout={() => setView('STUDENT_LOGIN')} 
+            onLogout={handleLogout} 
             onAction={handleAction} 
           />
         )}
@@ -123,7 +166,7 @@ const App: React.FC = () => {
             students={students} 
             isSyncing={isSyncing} 
             isProcessing={isProcessing} 
-            onLogout={() => setView('STUDENT_LOGIN')} 
+            onLogout={handleLogout} 
             onAction={handleAction} 
             gasUrl="" 
           />
