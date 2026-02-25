@@ -33,7 +33,14 @@ const ProctorDashboard: React.FC<ProctorDashboardProps> = ({
 
   const handleSaveStatus = async () => {
     if (selectedStudent && pendingStatus) {
-      const ok = await onAction('UPDATE_STUDENT', { ...selectedStudent, status: pendingStatus });
+      const updatedStudent = { ...selectedStudent, status: pendingStatus };
+      
+      // Reset pelanggaran jika status diubah menjadi BELUM_MASUK
+      if (pendingStatus === StudentStatus.BELUM_MASUK) {
+        updatedStudent.violations = 0;
+      }
+
+      const ok = await onAction('UPDATE_STUDENT', updatedStudent);
       if (ok) {
         setSelectedStudent(null);
         setPendingStatus(null);
@@ -101,7 +108,14 @@ const ProctorDashboard: React.FC<ProctorDashboardProps> = ({
                 <div key={String(student.nis)} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm active:scale-[0.98] transition-all flex flex-col gap-4">
                   <div className="flex justify-between items-start">
                     <div className="overflow-hidden flex-1 pr-2">
-                       <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">NIS: {student.nis}</p>
+                       <div className="flex items-center gap-2 mb-0.5">
+                         <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">NIS: {student.nis}</p>
+                         {student.violations && student.violations > 0 ? (
+                           <span className="bg-red-50 text-red-600 text-[8px] font-black px-1.5 py-0.5 rounded border border-red-100 uppercase">
+                             {student.violations} Pelanggaran
+                           </span>
+                         ) : null}
+                       </div>
                        <h3 className="text-sm font-black text-slate-800 uppercase truncate leading-tight">{student.name}</h3>
                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Kelas {student.class}</p>
                     </div>
@@ -139,7 +153,14 @@ const ProctorDashboard: React.FC<ProctorDashboardProps> = ({
                     filteredStudents.map(student => (
                       <tr key={String(student.nis)} className="hover:bg-slate-50/80 transition-colors">
                         <td className="px-10 py-6">
-                           <p className="text-[10px] font-black text-indigo-600 mb-0.5">{student.nis}</p>
+                           <div className="flex items-center gap-2 mb-0.5">
+                             <p className="text-[10px] font-black text-indigo-600">{student.nis}</p>
+                             {student.violations && student.violations > 0 ? (
+                               <span className="bg-red-50 text-red-600 text-[8px] font-black px-2 py-0.5 rounded-lg border border-red-100 uppercase tracking-tighter">
+                                 {student.violations} Pelanggaran
+                               </span>
+                             ) : null}
+                           </div>
                            <p className="font-black text-slate-800 uppercase text-sm tracking-tight">{student.name}</p>
                         </td>
                         <td className="px-10 py-6">

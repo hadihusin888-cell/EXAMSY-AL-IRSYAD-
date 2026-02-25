@@ -45,6 +45,7 @@ export interface Student {
   password?: string;
   status: StudentStatus;
   roomId?: string; // ID Ruang tempat siswa ujian
+  violations?: number; // Jumlah pelanggaran yang dilakukan
 }
 
 export interface ExamSubmission {

@@ -6,10 +6,11 @@ interface ExamRoomProps {
   student: Student;
   students: Student[]; 
   session: ExamSession;
+  onAction: (action: string, payload: any) => Promise<boolean>;
   onFinish: () => void;
 }
 
-const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onFinish }) => {
+const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onAction, onFinish }) => {
   const [timeLeft, setTimeLeft] = useState(session.durationMinutes * 60);
   const [hasConsented, setHasConsented] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -124,8 +125,16 @@ const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onFinis
     if (now - lastViolationTime.current < 3000) return; 
     lastViolationTime.current = now;
     setIsFocusLost(true);
-    setViolations(v => v + 1);
-  }, [isBlocked]);
+    
+    const newViolationCount = violations + 1;
+    setViolations(newViolationCount);
+
+    // Sync ke database
+    onAction('UPDATE_STUDENT', {
+      ...student,
+      violations: newViolationCount
+    });
+  }, [isBlocked, violations, student, onAction]);
 
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => e.preventDefault();

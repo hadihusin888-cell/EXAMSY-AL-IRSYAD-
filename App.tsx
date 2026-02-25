@@ -177,12 +177,14 @@ const App: React.FC = () => {
             student={currentUser} 
             students={students} 
             session={currentSession} 
+            onAction={handleAction}
             onFinish={async () => { 
               // Perbaikan: Ubah status menjadi SELESAI di Firestore sebelum navigasi
               if (currentUser) {
                 await handleAction('UPDATE_STUDENT', {
                   ...currentUser,
-                  status: StudentStatus.SELESAI
+                  status: StudentStatus.SELESAI,
+                  violations: 0
                 });
               }
               setCurrentUser(null); 

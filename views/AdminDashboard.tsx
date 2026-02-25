@@ -104,7 +104,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           if (Object.values(StudentStatus).includes(inputStatus as StudentStatus)) {
             finalStatus = inputStatus as StudentStatus;
           }
-          const payload = {
+          const payload: any = {
             nis: String(nis),
             name: String(name).toUpperCase(),
             class: String(cls || "7"),
@@ -112,6 +112,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             password: (pass || "password123"),
             status: finalStatus
           };
+          
+          // Reset pelanggaran jika status diimpor sebagai BELUM_MASUK
+          if (finalStatus === StudentStatus.BELUM_MASUK) {
+            payload.violations = 0;
+          }
+
           const success = await onAction('ADD_STUDENT', payload);
           if (success) successCount++;
           else errorCount++;
@@ -150,9 +156,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleBulkUpdate = async (updates: Partial<Student>) => {
+    const finalUpdates = { ...updates };
+    if (updates.status === StudentStatus.BELUM_MASUK) {
+      finalUpdates.violations = 0;
+    }
+
     const ok = await onAction('BULK_UPDATE_STUDENTS', { 
       selectedNis, 
-      updates 
+      updates: finalUpdates 
     });
     if (ok) {
       setSelectedNis([]);
@@ -683,14 +694,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               e.preventDefault();
               if (isProcessing) return;
               const f = new FormData(e.currentTarget);
-              const data = {
+              const newStatus = f.get('status') as StudentStatus;
+              const data: any = {
                 nis: (f.get('nis') as string).trim(),
                 name: (f.get('name') as string).toUpperCase().trim(),
                 class: f.get('class') as string,
                 roomId: f.get('roomId') as string,
                 password: (f.get('password') as string) || "password123",
-                status: f.get('status') as StudentStatus
+                status: newStatus
               };
+              
+              // Reset pelanggaran jika status diubah menjadi BELUM_MASUK
+              if (newStatus === StudentStatus.BELUM_MASUK) {
+                data.violations = 0;
+              }
+
               const ok = await onAction(studentToEdit ? 'UPDATE_STUDENT' : 'ADD_STUDENT', data);
               if(ok) { setStudentToEdit(null); setStudentToAdd(false); }
             }} className="space-y-6">
