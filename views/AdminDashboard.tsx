@@ -425,6 +425,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <div className="overflow-hidden">
                           <p className="text-[10px] font-black text-indigo-600 leading-none mb-1.5 uppercase tracking-tight">{s.nis}</p>
                           <h4 className="text-xs font-black text-slate-800 uppercase truncate">{s.name}</h4>
+                          <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase">Pass: <span className="text-indigo-500 font-black normal-case">{s.password || '-'}</span></p>
                         </div>
                         <div className="shrink-0 ml-3">
                            {getStatusBadge(s.status)}

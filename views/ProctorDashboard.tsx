@@ -117,7 +117,7 @@ const ProctorDashboard: React.FC<ProctorDashboardProps> = ({
                        <h3 className="text-sm font-black text-slate-800 uppercase truncate leading-tight">{student.name}</h3>
                        <div className="flex items-center gap-2 mt-0.5">
                          <p className="text-[10px] font-bold text-slate-400 uppercase">Kelas {student.class}</p>
-                         <span className="text-[10px] font-black text-indigo-400 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">Pass: {student.password}</span>
+                         <span className="text-[10px] font-black text-indigo-400 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">Pass: {student.password || '-'}</span>
                        </div>
                     </div>
                     <div className="shrink-0">{getStatusBadge(student.status)}</div>
@@ -161,7 +161,7 @@ const ProctorDashboard: React.FC<ProctorDashboardProps> = ({
                              </span>
                            </div>
                            <p className="font-black text-slate-800 uppercase text-sm tracking-tight">{student.name}</p>
-                           <p className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">Password: <span className="text-indigo-600 font-black normal-case">{student.password}</span></p>
+                           <p className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">Password: <span className="text-indigo-600 font-black normal-case">{student.password || '-'}</span></p>
                         </td>
                         <td className="px-10 py-6">
                            <span className="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest">Kls {student.class}</span>
@@ -193,6 +193,9 @@ const ProctorDashboard: React.FC<ProctorDashboardProps> = ({
               <span className="text-[9px] md:text-[10px] font-black text-emerald-600 uppercase tracking-widest block mb-2">Manajemen Status Siswa</span>
               <h3 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tighter leading-tight">{selectedStudent.name}</h3>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mt-1">Kelas {selectedStudent.class} • {selectedStudent.nis}</p>
+              <div className="mt-3 inline-block bg-indigo-50 px-4 py-1.5 rounded-xl border border-indigo-100">
+                <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Password: <span className="normal-case">{selectedStudent.password || '-'}</span></p>
+              </div>
             </div>
             
             <div className="grid grid-cols-1 gap-3 mb-8">
