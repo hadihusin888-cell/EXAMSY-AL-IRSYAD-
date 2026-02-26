@@ -115,7 +115,10 @@ const ProctorDashboard: React.FC<ProctorDashboardProps> = ({
                          </span>
                        </div>
                        <h3 className="text-sm font-black text-slate-800 uppercase truncate leading-tight">{student.name}</h3>
-                       <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Kelas {student.class}</p>
+                       <div className="flex items-center gap-2 mt-0.5">
+                         <p className="text-[10px] font-bold text-slate-400 uppercase">Kelas {student.class}</p>
+                         <span className="text-[10px] font-black text-indigo-400 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">Pass: {student.password}</span>
+                       </div>
                     </div>
                     <div className="shrink-0">{getStatusBadge(student.status)}</div>
                   </div>
@@ -158,6 +161,7 @@ const ProctorDashboard: React.FC<ProctorDashboardProps> = ({
                              </span>
                            </div>
                            <p className="font-black text-slate-800 uppercase text-sm tracking-tight">{student.name}</p>
+                           <p className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">Password: <span className="text-indigo-600 font-black normal-case">{student.password}</span></p>
                         </td>
                         <td className="px-10 py-6">
                            <span className="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest">Kls {student.class}</span>

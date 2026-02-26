@@ -9,9 +9,14 @@ if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
-const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+try {
+  const root = ReactDOM.createRoot(rootElement);
+  root.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+} catch (err) {
+  console.error("React Render Error:", err);
+  rootElement.innerHTML = `<div style="padding: 20px; color: red;">Error: ${err instanceof Error ? err.message : String(err)}</div>`;
+}
