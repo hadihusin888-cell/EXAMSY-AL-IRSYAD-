@@ -226,6 +226,8 @@ const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onActio
     if (violations >= MAX_VIOLATIONS) handleFinalFinish();
   }, [violations]);
 
+  const isIPhone = /iPhone/i.test(navigator.userAgent);
+
   return (
     <div 
       className="flex flex-col h-[100dvh] w-screen overflow-hidden select-none bg-slate-950 font-sans relative"
@@ -303,7 +305,7 @@ const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onActio
         </div>
       </header>
 
-      <main className={`flex-1 bg-slate-900 relative transition-all duration-300 overflow-hidden ${(isFocusLost || isBlocked || (hasConsented && !isFullscreen)) ? 'blur-3xl pointer-events-none' : ''}`}>
+      <main className={`flex-1 bg-slate-900 relative transition-all duration-300 overflow-hidden ${(isFocusLost || isBlocked || (hasConsented && !isFullscreen && !isIPhone)) ? 'blur-3xl pointer-events-none' : ''}`}>
         <div className="w-full h-full overflow-auto scrollbar-hide">
           <div className="w-full h-full relative transition-transform duration-300 ease-out origin-top" style={{ transform: `scale(${zoomLevel})` }}>
             <div className="relative w-full h-full overflow-hidden" style={{ marginTop: `-${CLIPPING_TOP}px`, marginLeft: `-${CLIPPING_SIDE}px`, width: `calc(100% + ${CLIPPING_SIDE * 2}px)`, height: `calc(100% + ${CLIPPING_TOP + CLIPPING_BOTTOM}px)` }}>
