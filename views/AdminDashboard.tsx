@@ -38,6 +38,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Search & Filters
   const [searchTerm, setSearchTerm] = useState('');
+  const [sessionSearchTerm, setSessionSearchTerm] = useState('');
+  const [sessionSortBy, setSessionSortBy] = useState<'NAME' | 'CLASS' | 'STATUS'>('NAME');
+  const [sessionSortOrder, setSessionSortOrder] = useState<'ASC' | 'DESC'>('ASC');
   const [roomFilter, setRoomFilter] = useState('ALL');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -70,8 +73,31 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   }, [students, searchTerm, roomFilter]);
 
   const sortedSessions = useMemo(() => {
-    return [...sessions].sort((a, b) => a.name.localeCompare(b.name));
-  }, [sessions]);
+    let filtered = [...sessions];
+    
+    // Filter by search term if needed (optional but good UX)
+    if (sessionSearchTerm.trim()) {
+      const term = sessionSearchTerm.toLowerCase();
+      filtered = filtered.filter(s => 
+        s.name.toLowerCase().includes(term) || 
+        s.pin.toLowerCase().includes(term)
+      );
+    }
+
+    return filtered.sort((a, b) => {
+      let comparison = 0;
+      if (sessionSortBy === 'NAME') {
+        comparison = a.name.localeCompare(b.name);
+      } else if (sessionSortBy === 'CLASS') {
+        comparison = a.class.localeCompare(b.class);
+      } else if (sessionSortBy === 'STATUS') {
+        // Active (true) should come before inactive (false) in ASC
+        comparison = (a.isActive === b.isActive) ? 0 : a.isActive ? -1 : 1;
+      }
+      
+      return sessionSortOrder === 'ASC' ? comparison : -comparison;
+    });
+  }, [sessions, sessionSortBy, sessionSortOrder, sessionSearchTerm]);
 
   const toggleSelectAllVisible = () => {
     const allVisibleSelected = filteredStudents.length > 0 && filteredStudents.every(s => selectedNis.includes(String(s.nis)));
@@ -212,11 +238,47 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {activeTab === 'SESSIONS' && (
            <div className="max-w-7xl mx-auto">
              <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-4">
-               <div>
+               <div className="flex-1">
                  <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter uppercase leading-none">Sesi Ujian</h2>
                  <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-2">Jadwal & Soal Terintegrasi Cloud</p>
                </div>
-               <button onClick={() => setShowAddSession(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95"> + Sesi Baru </button>
+               
+               <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                 <div className="relative flex-1 md:w-64">
+                   <input 
+                     type="text" 
+                     placeholder="Cari Sesi..." 
+                     value={sessionSearchTerm}
+                     onChange={(e) => setSessionSearchTerm(e.target.value)}
+                     className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-bold outline-none focus:border-indigo-500 shadow-sm"
+                   />
+                   <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                   </svg>
+                 </div>
+
+                 <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-3 py-2 shadow-sm">
+                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sortir:</span>
+                   <select 
+                     value={`${sessionSortBy}-${sessionSortOrder}`}
+                     onChange={(e) => {
+                       const [by, order] = e.target.value.split('-') as [any, any];
+                       setSessionSortBy(by);
+                       setSessionSortOrder(order);
+                     }}
+                     className="bg-transparent text-[10px] font-black uppercase text-slate-700 outline-none cursor-pointer"
+                   >
+                     <option value="NAME-ASC">Nama (A-Z)</option>
+                     <option value="NAME-DESC">Nama (Z-A)</option>
+                     <option value="CLASS-ASC">Kelas (7-9)</option>
+                     <option value="CLASS-DESC">Kelas (9-7)</option>
+                     <option value="STATUS-ASC">Status (Aktif)</option>
+                     <option value="STATUS-DESC">Status (Draft)</option>
+                   </select>
+                 </div>
+
+                 <button onClick={() => setShowAddSession(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl transition-all active:scale-95"> + Sesi Baru </button>
+               </div>
              </div>
              
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
