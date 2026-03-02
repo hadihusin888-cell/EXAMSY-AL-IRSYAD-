@@ -306,14 +306,21 @@ const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onActio
       </header>
 
       <main className={`flex-1 bg-slate-900 relative transition-all duration-300 overflow-hidden ${(isFocusLost || isBlocked || (hasConsented && !isFullscreen && !isIPhone)) ? 'blur-3xl pointer-events-none' : ''}`}>
-        <div className="w-full h-full overflow-auto scrollbar-hide">
-          <div className="w-full h-full relative transition-transform duration-300 ease-out origin-top" style={{ transform: `scale(${zoomLevel})` }}>
+        <div 
+          className="w-full h-full overflow-auto scrollbar-hide pb-40" 
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          <div 
+            className={`w-full h-full relative transition-transform duration-300 ease-out origin-top ${isIPhone ? 'min-h-[100%]' : ''}`} 
+            style={{ transform: `scale(${zoomLevel})` }}
+          >
             <div className="relative w-full h-full overflow-hidden" style={{ marginTop: `-${CLIPPING_TOP}px`, marginLeft: `-${CLIPPING_SIDE}px`, width: `calc(100% + ${CLIPPING_SIDE * 2}px)`, height: `calc(100% + ${CLIPPING_TOP + CLIPPING_BOTTOM}px)` }}>
               {hasConsented && session.pdfUrl && (
                 <iframe 
                   key={iframeKey} 
                   src={sanitizePdfUrl(session.pdfUrl)} 
                   className="w-full h-full border-none" 
+                  style={isIPhone ? { height: '100%', minHeight: '100%' } : {}}
                   title="Soal PDF" 
                 />
               )}
