@@ -26,6 +26,7 @@ const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onActio
 
   const wakeLockRef = useRef<any>(null);
   const videoWakeLockRef = useRef<HTMLVideoElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const lastViolationTime = useRef(0);
 
   const MAX_VIOLATIONS = 3;
@@ -81,6 +82,17 @@ const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onActio
 
   const handleZoom = (delta: number) => {
     setZoomLevel(prev => Math.min(Math.max(prev + delta, 0.5), 3.0));
+    resetZoomTimer();
+  };
+
+  const handleAutoScroll = (direction: 'up' | 'down') => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = 250;
+      scrollContainerRef.current.scrollBy({
+        top: direction === 'up' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
     resetZoomTimer();
   };
 
@@ -307,6 +319,7 @@ const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onActio
 
       <main className={`flex-1 bg-slate-900 relative transition-all duration-300 overflow-hidden ${(isFocusLost || isBlocked || (hasConsented && !isFullscreen && !isIPhone)) ? 'blur-3xl pointer-events-none' : ''}`}>
         <div 
+          ref={scrollContainerRef}
           className="w-full h-full overflow-auto scrollbar-hide pb-40" 
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
@@ -343,6 +356,28 @@ const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onActio
              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M20 12H4" /></svg>
            </button>
         </div>
+
+        {/* IPHONE MANUAL SCROLL BUTTONS */}
+        {isIPhone && (
+          <div className={`absolute right-4 top-1/2 -translate-y-1/2 z-[200] flex flex-col gap-3 transition-all duration-500 ${isZoomVisible ? 'opacity-40 hover:opacity-100' : 'opacity-[0.15] hover:opacity-100'}`}>
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleAutoScroll('up'); }}
+              className="w-12 h-12 flex items-center justify-center bg-black/40 backdrop-blur-xl border border-white/10 text-white rounded-2xl shadow-2xl active:scale-90 transition-all"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" />
+              </svg>
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleAutoScroll('down'); }}
+              className="w-12 h-12 flex items-center justify-center bg-black/40 backdrop-blur-xl border border-white/10 text-white rounded-2xl shadow-2xl active:scale-90 transition-all"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
+        )}
       </main>
 
       {/* MODAL PELANGGARAN */}
