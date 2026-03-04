@@ -16,6 +16,7 @@ try {
       <App />
     </React.StrictMode>
   );
+  (window as any).appLoaded = true;
 } catch (err) {
   console.error("React Render Error:", err);
   rootElement.innerHTML = `<div style="padding: 20px; color: red;">Error: ${err instanceof Error ? err.message : String(err)}</div>`;
