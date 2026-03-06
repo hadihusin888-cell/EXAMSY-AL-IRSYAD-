@@ -2,6 +2,22 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { ExamSession, Student, StudentStatus, Room, Question } from '../types';
 
+const formatDate = (dateStr: string) => {
+  if (!dateStr || dateStr === 'TIDAK_ADA_TANGGAL') return 'Tanpa Tanggal';
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    return new Intl.DateTimeFormat('id-ID', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    }).format(date);
+  } catch (e) {
+    return dateStr;
+  }
+};
+
 interface AdminDashboardProps {
   sessions: ExamSession[];
   students: Student[];
@@ -39,8 +55,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Search & Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [sessionSearchTerm, setSessionSearchTerm] = useState('');
-  const [sessionSortBy, setSessionSortBy] = useState<'NAME' | 'CLASS' | 'STATUS'>('NAME');
-  const [sessionSortOrder, setSessionSortOrder] = useState<'ASC' | 'DESC'>('ASC');
+  const [sessionSortBy, setSessionSortBy] = useState<'NAME' | 'CLASS' | 'STATUS' | 'DATE'>('DATE');
+  const [sessionSortOrder, setSessionSortOrder] = useState<'ASC' | 'DESC'>('DESC');
   const [roomFilter, setRoomFilter] = useState('ALL');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -93,11 +109,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       } else if (sessionSortBy === 'STATUS') {
         // Active (true) should come before inactive (false) in ASC
         comparison = (a.isActive === b.isActive) ? 0 : a.isActive ? -1 : 1;
+      } else if (sessionSortBy === 'DATE') {
+        comparison = (a.date || '').localeCompare(b.date || '');
+      }
+      
+      if (comparison === 0) {
+        return a.name.localeCompare(b.name);
       }
       
       return sessionSortOrder === 'ASC' ? comparison : -comparison;
     });
   }, [sessions, sessionSortBy, sessionSortOrder, sessionSearchTerm]);
+
+  const groupedSessions = useMemo(() => {
+    const groups: { [key: string]: typeof sessions } = {};
+    sortedSessions.forEach(session => {
+      const dateKey = session.date || 'TIDAK_ADA_TANGGAL';
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(session);
+    });
+    return groups;
+  }, [sortedSessions]);
 
   const toggleSelectAllVisible = () => {
     const allVisibleSelected = filteredStudents.length > 0 && filteredStudents.every(s => selectedNis.includes(String(s.nis)));
@@ -268,6 +302,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                      }}
                      className="bg-transparent text-[10px] font-black uppercase text-slate-700 outline-none cursor-pointer"
                    >
+                     <option value="DATE-DESC">Terbaru (Tanggal)</option>
+                     <option value="DATE-ASC">Terlama (Tanggal)</option>
                      <option value="NAME-ASC">Nama (A-Z)</option>
                      <option value="NAME-DESC">Nama (Z-A)</option>
                      <option value="CLASS-ASC">Kelas (7-9)</option>
@@ -281,35 +317,53 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                </div>
              </div>
              
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-               {sortedSessions.length === 0 ? (
-                 <div className="col-span-full py-20 bg-white rounded-[3rem] border border-dashed border-slate-200 text-center">
+             <div className="space-y-12">
+               {Object.keys(groupedSessions).length === 0 ? (
+                 <div className="py-20 bg-white rounded-[3rem] border border-dashed border-slate-200 text-center">
                     <p className="text-slate-300 font-black uppercase tracking-[0.2em] text-xs">Belum Ada Sesi Ujian</p>
                  </div>
                ) : (
-                 sortedSessions.map(session => (
-                   <div key={session.id} className="bg-white p-7 rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden">
-                     <div className="flex justify-between items-start mb-4">
-                       <div>
-                         <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-none mb-1">{session.name}</h3>
-                       </div>
-                       <button onClick={() => onAction('UPDATE_SESSION', { ...session, isActive: !session.isActive })} className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all border ${session.isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
-                         {session.isActive ? 'Aktif' : 'Draft'}
-                       </button>
+                 Object.entries(groupedSessions).sort(([a], [b]) => {
+                   if (sessionSortBy === 'DATE') {
+                     return sessionSortOrder === 'ASC' ? a.localeCompare(b) : b.localeCompare(a);
+                   }
+                   return b.localeCompare(a);
+                 }).map(([date, sessionsInDate]) => (
+                   <div key={date} className="space-y-6">
+                     <div className="flex items-center gap-4">
+                       <div className="h-px flex-1 bg-slate-200"></div>
+                       <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] bg-slate-50 px-4 py-1 rounded-full border border-slate-100">
+                         {formatDate(date)}
+                       </h3>
+                       <div className="h-px flex-1 bg-slate-200"></div>
                      </div>
-                     <div className="flex gap-2 mb-8">
-                        <span className="bg-slate-50 text-slate-500 text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider border border-slate-100">Kls {session.class}</span>
-                        <span className="bg-indigo-50 text-indigo-600 text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider border border-indigo-100">PIN: {session.pin}</span>
-                        <span className="bg-slate-50 text-slate-500 text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider border border-slate-100">{session.durationMinutes} Menit</span>
-                     </div>
-                     <div className="flex gap-2">
-                       <button onClick={() => setSessionToView(session)} className="flex-1 bg-slate-900 text-white h-12 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all">Lihat Soal</button>
-                       <button onClick={() => setSessionToEdit(session)} className="w-12 h-12 flex items-center justify-center bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100 hover:bg-indigo-600 hover:text-white transition-all">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                       </button>
-                       <button onClick={() => setSessionToDelete(session.id)} className="w-12 h-12 flex items-center justify-center bg-red-50 text-red-500 rounded-2xl border border-red-100 hover:bg-red-600 hover:text-white transition-all">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                       </button>
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                       {sessionsInDate.map(session => (
+                         <div key={session.id} className="bg-white p-7 rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden">
+                           <div className="flex justify-between items-start mb-4">
+                             <div>
+                               <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-none mb-1">{session.name}</h3>
+                             </div>
+                             <button onClick={() => onAction('UPDATE_SESSION', { ...session, isActive: !session.isActive })} className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all border ${session.isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
+                               {session.isActive ? 'Aktif' : 'Draft'}
+                             </button>
+                           </div>
+                           <div className="flex gap-2 mb-8">
+                              <span className="bg-slate-50 text-slate-500 text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider border border-slate-100">Kls {session.class}</span>
+                              <span className="bg-indigo-50 text-indigo-600 text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider border border-indigo-100">PIN: {session.pin}</span>
+                              <span className="bg-slate-50 text-slate-500 text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider border border-slate-100">{session.durationMinutes} Menit</span>
+                           </div>
+                           <div className="flex gap-2">
+                             <button onClick={() => setSessionToView(session)} className="flex-1 bg-slate-900 text-white h-12 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all">Lihat Soal</button>
+                             <button onClick={() => setSessionToEdit(session)} className="w-12 h-12 flex items-center justify-center bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100 hover:bg-indigo-600 hover:text-white transition-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                             </button>
+                             <button onClick={() => setSessionToDelete(session.id)} className="w-12 h-12 flex items-center justify-center bg-red-50 text-red-500 rounded-2xl border border-red-100 hover:bg-red-600 hover:text-white transition-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                             </button>
+                           </div>
+                         </div>
+                       ))}
                      </div>
                    </div>
                  ))
@@ -626,6 +680,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 pin: (f.get('pin') as string).toUpperCase().trim(),
                 durationMinutes: Number(f.get('duration')),
                 pdfUrl: (f.get('pdfUrl') as string).trim(),
+                date: f.get('date') as string,
                 isActive: !!f.get('isActive'),
                 questions: sessionToEdit ? sessionToEdit.questions : []
               };
@@ -636,6 +691,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nama Mata Pelajaran</label>
                 <input name="name" defaultValue={sessionToEdit?.name} required placeholder="Contoh: MATEMATIKA PAT" className="w-full px-6 py-4.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none uppercase focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tanggal Ujian</label>
+                <input type="date" name="date" defaultValue={sessionToEdit?.date || new Date().toISOString().split('T')[0]} required className="w-full px-6 py-4.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all" />
               </div>
 
               <div className="grid grid-cols-2 gap-6">

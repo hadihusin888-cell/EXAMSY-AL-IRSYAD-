@@ -28,6 +28,7 @@ export interface ExamSession {
   isActive: boolean;
   questions: Question[];
   pdfUrl?: string; // Link ke file PDF soal
+  date?: string; // Tanggal ujian (YYYY-MM-DD)
 }
 
 export interface Room {
