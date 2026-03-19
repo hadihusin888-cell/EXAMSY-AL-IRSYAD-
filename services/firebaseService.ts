@@ -89,6 +89,15 @@ export const dbAction = async (action: string, payload: any): Promise<boolean> =
         await deleteDoc(doc(db, "students", String(payload.nis)));
         break;
 
+      case 'BULK_DELETE_STUDENTS':
+        const studentBatch = writeBatch(db);
+        payload.forEach((nis: string) => {
+          const studentRef = doc(db, "students", String(nis));
+          studentBatch.delete(studentRef);
+        });
+        await studentBatch.commit();
+        break;
+
       case 'BULK_UPDATE_STUDENTS':
         const batch = writeBatch(db);
         payload.selectedNis.forEach((nis: string) => {
@@ -105,6 +114,15 @@ export const dbAction = async (action: string, payload: any): Promise<boolean> =
 
       case 'DELETE_SESSION':
         await deleteDoc(doc(db, "sessions", String(payload.id)));
+        break;
+
+      case 'BULK_DELETE_SESSIONS':
+        const sessionBatch = writeBatch(db);
+        payload.forEach((id: string) => {
+          const sessionRef = doc(db, "sessions", id);
+          sessionBatch.delete(sessionRef);
+        });
+        await sessionBatch.commit();
         break;
 
       case 'ADD_ROOM':

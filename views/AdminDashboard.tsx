@@ -43,7 +43,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [studentToAdd, setStudentToAdd] = useState(false);
   const [selectedNis, setSelectedNis] = useState<string[]>([]);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [showBulkDeleteSessionsConfirm, setShowBulkDeleteSessionsConfirm] = useState(false);
   const [showBulkRoomModal, setShowBulkRoomModal] = useState(false);
   const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
 
@@ -144,6 +146,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  const toggleSelectAllSessions = () => {
+    const allVisibleSelected = sortedSessions.length > 0 && sortedSessions.every(s => selectedSessionIds.includes(s.id));
+    if (allVisibleSelected) {
+      const visibleIds = sortedSessions.map(s => s.id);
+      setSelectedSessionIds(prev => prev.filter(id => !visibleIds.includes(id)));
+    } else {
+      const visibleIds = sortedSessions.map(s => s.id);
+      setSelectedSessionIds(prev => Array.from(new Set([...prev, ...visibleIds])));
+    }
+  };
+
+  const toggleSessionSelection = (id: string) => {
+    setSelectedSessionIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
   const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -205,14 +224,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleBulkDelete = async () => {
-    let success = 0;
-    for (const nis of selectedNis) {
-      const ok = await onAction('DELETE_STUDENT', { nis });
-      if (ok) success++;
+    const ok = await onAction('BULK_DELETE_STUDENTS', selectedNis);
+    if (ok) {
+      setShowBulkDeleteConfirm(false);
+      setSelectedNis([]);
+      alert(`Siswa berhasil dihapus.`);
     }
-    setShowBulkDeleteConfirm(false);
-    setSelectedNis([]);
-    alert(`${success} Siswa berhasil dihapus.`);
   };
 
   const handleBulkUpdate = async (updates: Partial<Student>) => {
@@ -313,9 +330,36 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                    </select>
                  </div>
 
+                 <button 
+                    onClick={toggleSelectAllSessions} 
+                    className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 border-2 ${
+                      sortedSessions.length > 0 && sortedSessions.every(s => selectedSessionIds.includes(s.id))
+                        ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                        : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
+                    }`}
+                  >
+                    {sortedSessions.length > 0 && sortedSessions.every(s => selectedSessionIds.includes(s.id)) ? 'Batal Pilih Semua' : 'Pilih Semua'}
+                  </button>
+
                  <button onClick={() => setShowAddSession(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl transition-all active:scale-95"> + Sesi Baru </button>
                </div>
              </div>
+
+             {selectedSessionIds.length > 0 && (
+               <div className="mb-10 bg-indigo-600 text-white px-8 py-4 rounded-3xl flex items-center justify-between animate-in slide-in-from-top-6 shadow-2xl z-[60] sticky top-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center font-black text-lg">{selectedSessionIds.length}</div>
+                    <div>
+                       <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Sesi Terpilih</p>
+                       <p className="text-sm font-black uppercase tracking-tight">Aksi Masal Tersedia</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                     <button onClick={() => setSelectedSessionIds([])} className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">Batal</button>
+                     <button onClick={() => setShowBulkDeleteSessionsConfirm(true)} className="px-6 py-3 bg-red-500 hover:bg-red-600 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg">Hapus Masal</button>
+                  </div>
+               </div>
+             )}
              
              <div className="space-y-12">
                {Object.keys(groupedSessions).length === 0 ? (
@@ -339,10 +383,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                      </div>
                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                        {sessionsInDate.map(session => (
-                         <div key={session.id} className="bg-white p-7 rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden">
+                         <div key={session.id} className={`bg-white p-7 rounded-[2.5rem] border transition-all group relative overflow-hidden ${selectedSessionIds.includes(session.id) ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-xl' : 'border-slate-200 shadow-sm hover:shadow-xl'}`}>
                            <div className="flex justify-between items-start mb-4">
-                             <div>
-                               <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-none mb-1">{session.name}</h3>
+                             <div className="flex items-start gap-3">
+                               <div className="mt-1">
+                                 <input 
+                                   type="checkbox" 
+                                   checked={selectedSessionIds.includes(session.id)}
+                                   onChange={() => toggleSessionSelection(session.id)}
+                                   className="w-5 h-5 rounded-lg border-2 border-slate-200 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
+                                 />
+                               </div>
+                               <div>
+                                 <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-none mb-1">{session.name}</h3>
+                               </div>
                              </div>
                              <button onClick={() => onAction('UPDATE_SESSION', { ...session, isActive: !session.isActive })} className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all border ${session.isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
                                {session.isActive ? 'Aktif' : 'Draft'}
@@ -614,7 +668,35 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* SESSION PREVIEW MODAL */}
+       {/* Bulk Delete Sessions Confirmation */}
+       {showBulkDeleteSessionsConfirm && (
+         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+           <div className="bg-white w-full max-w-md rounded-[3rem] p-10 text-center animate-in zoom-in-95 duration-200">
+             <div className="w-20 h-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+             </div>
+             <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight mb-2">Hapus {selectedSessionIds.length} Sesi?</h3>
+             <p className="text-slate-500 text-sm font-bold mb-8">Tindakan ini tidak dapat dibatalkan. Semua data terkait sesi ini akan dihapus permanen.</p>
+             <div className="flex gap-3">
+               <button onClick={() => setShowBulkDeleteSessionsConfirm(false)} className="flex-1 h-14 bg-slate-100 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all">Batal</button>
+               <button 
+                 onClick={async () => {
+                   const success = await onAction('BULK_DELETE_SESSIONS', selectedSessionIds);
+                   if (success) {
+                     setSelectedSessionIds([]);
+                     setShowBulkDeleteSessionsConfirm(false);
+                   }
+                 }} 
+                 className="flex-1 h-14 bg-red-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-200"
+               >
+                 Ya, Hapus Semua
+               </button>
+             </div>
+           </div>
+         </div>
+       )}
+
+       {/* SESSION PREVIEW MODAL */}
       {sessionToView && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/70 backdrop-blur-md p-4 animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-5xl h-[90vh] flex flex-col rounded-[3.5rem] shadow-2xl relative animate-in zoom-in-95 overflow-hidden border border-white/20">
