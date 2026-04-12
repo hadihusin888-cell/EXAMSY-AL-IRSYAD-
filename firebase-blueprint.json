@@ -1,0 +1,63 @@
+{
+  "entities": {
+    "Student": {
+      "title": "Student",
+      "description": "Student data for exam",
+      "type": "object",
+      "properties": {
+        "nis": { "type": "string" },
+        "name": { "type": "string" },
+        "class": { "type": "string" },
+        "password": { "type": "string" },
+        "status": { "type": "string", "enum": ["BELUM_MASUK", "SEDANG_UJIAN", "SELESAI", "BLOKIR"] },
+        "roomId": { "type": "string" },
+        "violations": { "type": "number" }
+      },
+      "required": ["nis", "name", "class", "status"]
+    },
+    "ExamSession": {
+      "title": "ExamSession",
+      "description": "Exam session details and questions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "class": { "type": "string" },
+        "pin": { "type": "string" },
+        "durationMinutes": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "questions": { "type": "array" },
+        "pdfUrl": { "type": "string" },
+        "date": { "type": "string" }
+      },
+      "required": ["id", "name", "class", "pin", "durationMinutes", "isActive"]
+    },
+    "Room": {
+      "title": "Room",
+      "description": "Exam room and proctor credentials",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "capacity": { "type": "number" },
+        "username": { "type": "string" },
+        "password": { "type": "string" }
+      },
+      "required": ["id", "name", "capacity"]
+    }
+  },
+  "firestore": {
+    "students/{nis}": {
+      "schema": "Student",
+      "description": "Collection of students"
+    },
+    "sessions/{id}": {
+      "schema": "ExamSession",
+      "description": "Collection of exam sessions"
+    },
+    "rooms/{id}": {
+      "schema": "Room",
+      "description": "Collection of exam rooms"
+    }
+  }
+}

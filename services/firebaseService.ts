@@ -18,19 +18,11 @@ import { Student, ExamSession, Room } from "../types";
  * Firebase Configuration.
  * GANTI nilai di bawah ini dengan data dari Firebase Console proyek baru Anda.
  */
-const firebaseConfig = {
-  apiKey: "AIzaSyDvx0AIwIkc1lfeDCNpKQ1GDbYiJT5-5v4",
-  authDomain: "examsy-baru.firebaseapp.com",
-  projectId: "examsy-baru",
-  storageBucket: "examsy-baru.firebasestorage.app",
-  messagingSenderId: "734881817348",
-  appId: "1:734881817348:web:b2f327e57ff58f17662651",
-  measurementId: "G-S2FKT3XVS6"
-};
+import firebaseConfig from "../firebase-applet-config.json";
 
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 // Enable Offline Persistence untuk fitur semi-online
 if (typeof window !== 'undefined') {
