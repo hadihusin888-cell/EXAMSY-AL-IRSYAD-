@@ -31,9 +31,8 @@ const App: React.FC = () => {
         const auth = JSON.parse(savedAuth);
         if (auth.role === 'ADMIN') {
           setView('ADMIN_DASHBOARD');
-        } else if (auth.role === 'PROCTOR' && auth.roomId) {
-          // Kita akan set view ke PROCTOR_DASHBOARD nanti setelah rooms terisi
-          // Untuk sementara kita simpan roomId-nya
+        } else if (auth.role === 'STUDENT' && auth.nis && auth.sessionId) {
+          // Placeholder: Kita akan set view ke EXAM_ROOM setelah data terisi
         }
       } catch (e) {
         console.error("Error parsing saved auth", e);
@@ -46,11 +45,47 @@ const App: React.FC = () => {
     const unsub = syncData(
       (studentData) => {
         setStudents(studentData);
+        
+        // Cek jika ada session siswa yang tersimpan
+        const savedAuth = localStorage.getItem('examsy_auth');
+        if (savedAuth) {
+          try {
+            const auth = JSON.parse(savedAuth);
+            if (auth.role === 'STUDENT' && auth.nis && auth.sessionId) {
+              const student = studentData.find(s => String(s.nis) === String(auth.nis));
+              if (student && view === 'STUDENT_LOGIN') {
+                setCurrentUser(student);
+                // Sesi akan diset di effect sessions
+              }
+            }
+          } catch (e) {}
+        }
+
         setIsLoading(false);
         setIsSyncing(false);
       },
       (sessionData) => {
         setSessions(sessionData);
+
+        // Cek jika ada session siswa yang tersimpan
+        const savedAuth = localStorage.getItem('examsy_auth');
+        if (savedAuth) {
+          try {
+            const auth = JSON.parse(savedAuth);
+            if (auth.role === 'STUDENT' && auth.nis && auth.sessionId) {
+              const session = sessionData.find(s => s.id === auth.sessionId);
+              if (session && currentUser && view === 'STUDENT_LOGIN') {
+                setCurrentSession(session);
+                setView('EXAM_ROOM');
+                // Re-sync status just in case
+                handleAction('UPDATE_STUDENT', {
+                  ...currentUser,
+                  status: StudentStatus.SEDANG_UJIAN
+                });
+              }
+            }
+          } catch (e) {}
+        }
       },
       (roomData) => {
         setRooms(roomData);
@@ -88,17 +123,29 @@ const App: React.FC = () => {
 
   const handleStudentLogin = async (student: Student, session: ExamSession) => {
     setIsProcessing(true);
+    
+    // Simpan auth ke localStorage agar tidak logout saat refresh
+    localStorage.setItem('examsy_auth', JSON.stringify({ 
+      role: 'STUDENT', 
+      nis: student.nis, 
+      sessionId: session.id 
+    }));
+
     // Update status siswa menjadi sedang ujian di database
+    // Gunakan latest data dari state jika mungkin
+    const latestStudent = students.find(s => String(s.nis) === String(student.nis)) || student;
+
     const success = await handleAction('UPDATE_STUDENT', { 
-      ...student, 
+      ...latestStudent, 
       status: StudentStatus.SEDANG_UJIAN 
     });
     
     if (success) {
-      setCurrentUser(student);
+      setCurrentUser(latestStudent);
       setCurrentSession(session);
       setView('EXAM_ROOM');
     } else {
+      localStorage.removeItem('examsy_auth'); // Reset jika gagal
       alert("Gagal memproses login. Silakan cek koneksi Anda.");
     }
     setIsProcessing(false);

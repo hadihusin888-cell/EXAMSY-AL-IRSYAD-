@@ -52,7 +52,7 @@ const ProctorDashboard: React.FC<ProctorDashboardProps> = ({
     const base = "font-black uppercase tracking-wider rounded-full text-[9px] md:text-[10px] px-2.5 md:px-3 py-1 md:py-1.5 inline-flex items-center justify-center";
     switch (status) {
       case StudentStatus.BELUM_MASUK: return <span className={`${base} bg-slate-100 text-slate-500`}>Offline</span>;
-      case StudentStatus.SEDANG_UJIAN: return <span className={`${base} bg-amber-100 text-amber-600 border border-amber-200 animate-pulse`}>Ujian</span>;
+      case StudentStatus.SEDANG_UJIAN: return <span className={`${base} bg-amber-100 text-amber-600 border border-amber-200 animate-pulse`}>Sedang Ujian</span>;
       case StudentStatus.SELESAI: return <span className={`${base} bg-emerald-100 text-emerald-600`}>Selesai</span>;
       case StudentStatus.BLOKIR: return <span className={`${base} bg-red-100 text-red-600`}>Blokir</span>;
       default: return null;
