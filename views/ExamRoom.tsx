@@ -239,6 +239,8 @@ const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onActio
   }, [violations]);
 
   const isIPhone = /iPhone/i.test(navigator.userAgent);
+  const isIPad = /iPad/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isTabletOrMobile = isIPhone || isIPad || /Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0);
 
   return (
     <div 
@@ -317,14 +319,14 @@ const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onActio
         </div>
       </header>
 
-      <main className={`flex-1 bg-slate-900 relative transition-all duration-300 overflow-hidden ${(isFocusLost || isBlocked || (hasConsented && !isFullscreen && !isIPhone)) ? 'blur-3xl pointer-events-none' : ''}`}>
+      <main className={`flex-1 bg-slate-900 relative transition-all duration-300 overflow-hidden ${(isFocusLost || isBlocked || (hasConsented && !isFullscreen && !isTabletOrMobile)) ? 'blur-3xl pointer-events-none' : ''}`}>
         <div 
           ref={scrollContainerRef}
           className="w-full h-full overflow-auto scrollbar-hide pb-40" 
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
           <div 
-            className={`w-full h-full relative transition-transform duration-300 ease-out origin-top ${isIPhone ? 'min-h-[100%]' : ''}`} 
+            className={`w-full h-full relative transition-transform duration-300 ease-out origin-top ${isTabletOrMobile ? 'min-h-[100%]' : ''}`} 
             style={{ transform: `scale(${zoomLevel})` }}
           >
             <div className="relative w-full h-full overflow-hidden" style={{ marginTop: `-${CLIPPING_TOP}px`, marginLeft: `-${CLIPPING_SIDE}px`, width: `calc(100% + ${CLIPPING_SIDE * 2}px)`, height: `calc(100% + ${CLIPPING_TOP + CLIPPING_BOTTOM}px)` }}>
@@ -333,7 +335,7 @@ const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onActio
                   key={iframeKey} 
                   src={sanitizePdfUrl(session.pdfUrl)} 
                   className="w-full h-full border-none" 
-                  style={isIPhone ? { height: '100%', minHeight: '100%' } : {}}
+                  style={isTabletOrMobile ? { height: '100%', minHeight: '100%' } : {}}
                   title="Soal PDF" 
                 />
               )}
@@ -357,8 +359,8 @@ const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onActio
            </button>
         </div>
 
-        {/* IPHONE MANUAL SCROLL BUTTONS */}
-        {isIPhone && (
+        {/* MANUAL SCROLL BUTTONS FOR MOBILE & TABLETS */}
+        {isTabletOrMobile && (
           <div className={`absolute right-4 top-1/2 -translate-y-1/2 z-[200] flex flex-col gap-3 transition-all duration-500 ${isZoomVisible ? 'opacity-40 hover:opacity-100' : 'opacity-[0.15] hover:opacity-100'}`}>
             <button 
               onClick={(e) => { e.stopPropagation(); handleAutoScroll('up'); }}
