@@ -46,23 +46,6 @@ const App: React.FC = () => {
       (studentData) => {
         setStudents(studentData);
         
-        // Sinkronisasi real-time untuk siswa aktif di EXAM_ROOM
-        if (view === 'EXAM_ROOM' && currentUser) {
-          const updatedStudent = studentData.find(s => String(s.nis) === String(currentUser.nis));
-          if (updatedStudent) {
-            if (updatedStudent.status === StudentStatus.BELUM_MASUK || 
-                updatedStudent.status === StudentStatus.SELESAI || 
-                updatedStudent.status === StudentStatus.BLOKIR) {
-              localStorage.removeItem('examsy_auth');
-              setCurrentUser(null);
-              setCurrentSession(null);
-              setView('STUDENT_LOGIN');
-            } else {
-              setCurrentUser(updatedStudent);
-            }
-          }
-        }
-
         // Cek jika ada session siswa yang tersimpan
         const savedAuth = localStorage.getItem('examsy_auth');
         if (savedAuth) {
@@ -70,18 +53,9 @@ const App: React.FC = () => {
             const auth = JSON.parse(savedAuth);
             if (auth.role === 'STUDENT' && auth.nis && auth.sessionId) {
               const student = studentData.find(s => String(s.nis) === String(auth.nis));
-              if (student) {
-                if (student.status === StudentStatus.SEDANG_UJIAN) {
-                  if (view === 'STUDENT_LOGIN') {
-                    setCurrentUser(student);
-                  }
-                } else {
-                  // Jika status diubah oleh proktor ke BELUM_MASUK, SELESAI, atau BLOKIR,
-                  // hapus sesi otomatis agar bisa login secara bersih atau tetap di halaman login.
-                  localStorage.removeItem('examsy_auth');
-                  setCurrentUser(null);
-                  setCurrentSession(null);
-                }
+              if (student && view === 'STUDENT_LOGIN') {
+                setCurrentUser(student);
+                // Sesi akan diset di effect sessions
               }
             }
           } catch (e) {}
@@ -100,7 +74,7 @@ const App: React.FC = () => {
             const auth = JSON.parse(savedAuth);
             if (auth.role === 'STUDENT' && auth.nis && auth.sessionId) {
               const session = sessionData.find(s => s.id === auth.sessionId);
-              if (session && currentUser && currentUser.status === StudentStatus.SEDANG_UJIAN && view === 'STUDENT_LOGIN') {
+              if (session && currentUser && view === 'STUDENT_LOGIN') {
                 setCurrentSession(session);
                 setView('EXAM_ROOM');
                 // Re-sync status just in case
@@ -260,7 +234,6 @@ const App: React.FC = () => {
                   violations: 0
                 });
               }
-              localStorage.removeItem('examsy_auth');
               setCurrentUser(null); 
               setCurrentSession(null); 
               setView('STUDENT_LOGIN'); 
