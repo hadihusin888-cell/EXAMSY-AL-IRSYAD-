@@ -160,26 +160,66 @@ const App: React.FC = () => {
   };
 
   if (syncError) {
+    const isPermissionError = (syncError.message || String(syncError)).toLowerCase().includes('permission') || (syncError.code && syncError.code.includes('permission'));
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
-        <div className="bg-red-500/10 text-red-500 p-6 rounded-2xl border border-red-500/20 max-w-md w-full mb-6">
+        <div className="bg-red-500/10 text-red-500 p-6 rounded-2xl border border-red-500/20 max-w-lg w-full mb-6 text-left">
           <div className="w-12 h-12 bg-red-500/25 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">⚠️</div>
-          <h3 className="font-bold text-lg text-white mb-2">Gagal Menghubungkan ke Firebase</h3>
-          <p className="text-slate-400 text-sm mb-4 leading-relaxed">
+          <h3 className="font-bold text-lg text-white mb-2 text-center">Gagal Menghubungkan ke Firebase</h3>
+          <p className="text-slate-300 text-sm mb-4 leading-relaxed text-center">
             {syncError.message || String(syncError)}
           </p>
-          <div className="text-left text-xs bg-slate-900/80 p-3 rounded-lg font-mono text-slate-500 overflow-auto max-h-32 mb-4 scrollbar-thin">
-            <strong>Error Code:</strong> {syncError.code || 'unknown'}<br />
+          <div className="text-left text-xs bg-slate-900/80 p-3 rounded-lg font-mono text-slate-400 overflow-auto max-h-32 mb-4 scrollbar-thin border border-slate-800">
+            <strong>Error Code:</strong> {syncError.code || 'permission-denied'}<br />
             <strong>Project ID:</strong> examsy-new
           </div>
-          <div className="text-left text-xs text-slate-400 mt-2 border-t border-slate-800 pt-3">
-            <p className="font-semibold mb-1 text-slate-300">💡 Penyebab Umum & Solusi:</p>
-            <ul className="list-disc pl-4 space-y-1">
-              <li>Firestore Database belum diaktifkan di Console Firebase proyek <code className="text-indigo-400">examsy-new</code>. Silakan buka tab <strong>Firestore Database</strong> dan klik <strong>Create Database</strong>.</li>
-              <li>Akun Google/Firebase Anda belum dibuat database atau masih dalam proses pembuatan.</li>
-              <li>Koneksi internet Anda sedang diblokir oleh VPN, firewall, atau browser ad-blocker.</li>
-            </ul>
-          </div>
+
+          {isPermissionError ? (
+            <div className="text-xs text-slate-300 mt-2 border-t border-slate-800/80 pt-3 space-y-3">
+              <p className="font-semibold text-amber-400">🔑 Solusi Masalah Perizinan (Permission Denied):</p>
+              <p className="leading-relaxed">
+                Database Firebase baru Anda (<code className="text-indigo-400 font-mono bg-indigo-950/45 px-1 py-0.5 rounded">examsy-new</code>) saat ini memblokir akses baca-tulis karena aturan keamanannya. Ikuti 3 langkah mudah ini untuk membukanya:
+              </p>
+              <ol className="list-decimal pl-4 space-y-2">
+                <li>
+                  Buka tab <strong>Rules</strong> pada Firestore Database di Konsol Firebase Anda:<br />
+                  <a 
+                    href="https://console.firebase.google.com/project/examsy-new/firestore/rules" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-indigo-400 hover:underline font-semibold inline-block mt-1 font-mono break-all"
+                  >
+                    🔗 console.firebase.google.com/project/examsy-new/firestore/rules
+                  </a>
+                </li>
+                <li>
+                  Ganti aturan keamanan (Security Rules) yang ada dengan kode di bawah ini:
+                  <pre className="mt-1.5 p-2.5 bg-slate-900 rounded font-mono text-[10px] text-emerald-400 overflow-x-auto border border-slate-800">
+{`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}`}
+                  </pre>
+                </li>
+                <li>
+                  Klik tombol <strong>Publish</strong> di kanan atas halaman konsol tersebut, lalu klik tombol <strong>Muat Ulang</strong> di bawah ini.
+                </li>
+              </ol>
+            </div>
+          ) : (
+            <div className="text-xs text-slate-400 mt-2 border-t border-slate-800 pt-3">
+              <p className="font-semibold mb-1 text-slate-300">💡 Penyebab Umum & Solusi:</p>
+              <ul className="list-disc pl-4 space-y-1">
+                <li>Firestore Database belum diaktifkan di Console Firebase proyek <code className="text-indigo-400">examsy-new</code>. Silakan buka tab <strong>Firestore Database</strong> dan klik <strong>Create Database</strong>.</li>
+                <li>Akun Google/Firebase Anda belum dibuat database atau masih dalam proses pembuatan.</li>
+                <li>Koneksi internet Anda sedang diblokir oleh VPN, firewall, atau browser ad-blocker.</li>
+              </ul>
+            </div>
+          )}
         </div>
         <div className="flex gap-4">
           <button 
