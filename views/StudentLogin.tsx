@@ -250,8 +250,20 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ sessions, students, onLogin
         </form>
       </div>
 
-      <footer className="mt-8 text-slate-400 text-[9px] font-black uppercase tracking-widest text-center">
-        &copy; 2026 HUMAS SMP AL IRSYAD SURAKARTA
+      <footer className="mt-8 text-slate-400 text-[9px] font-black uppercase tracking-widest text-center flex flex-col items-center gap-2">
+        <div>&copy; 2026 HUMAS SMP AL IRSYAD SURAKARTA</div>
+        <button 
+          type="button"
+          onClick={() => {
+            if (window.confirm("Apakah Anda ingin membersihkan cache lokal dan memuat ulang database? Tindakan ini akan menghapus data tersimpan dan memaksa sinkronisasi ulang dengan server.")) {
+              localStorage.clear();
+              window.location.reload();
+            }
+          }}
+          className="mt-1 px-3 py-1 text-[8px] font-black tracking-widest text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200/60 rounded-full transition-all uppercase cursor-pointer"
+        >
+          🧹 Bersihkan Cache & Reset Koneksi
+        </button>
       </footer>
     </div>
   );

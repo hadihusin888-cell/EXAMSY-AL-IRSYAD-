@@ -191,8 +191,10 @@ export const syncData = (
 ) => {
   const unsubStudents = onSnapshot(collection(db, "students"), 
     (snapshot) => {
-      // Track read operations
-      incrementQuotaMetric("reads", snapshot.docChanges().length);
+      // Track read operations only if they do not come from the offline cache
+      if (!snapshot.metadata.fromCache) {
+        incrementQuotaMetric("reads", snapshot.docChanges().length);
+      }
       const data = snapshot.docs.map(sDoc => sDoc.data() as Student);
       onStudentsUpdate(data);
     },
@@ -208,8 +210,10 @@ export const syncData = (
 
   const unsubSessions = onSnapshot(collection(db, "sessions"), 
     (snapshot) => {
-      // Track read operations
-      incrementQuotaMetric("reads", snapshot.docChanges().length);
+      // Track read operations only if they do not come from the offline cache
+      if (!snapshot.metadata.fromCache) {
+        incrementQuotaMetric("reads", snapshot.docChanges().length);
+      }
       const data = snapshot.docs.map(sDoc => sDoc.data() as ExamSession);
       onSessionsUpdate(data);
     },
@@ -225,8 +229,10 @@ export const syncData = (
 
   const unsubRooms = onSnapshot(collection(db, "rooms"), 
     (snapshot) => {
-      // Track read operations
-      incrementQuotaMetric("reads", snapshot.docChanges().length);
+      // Track read operations only if they do not come from the offline cache
+      if (!snapshot.metadata.fromCache) {
+        incrementQuotaMetric("reads", snapshot.docChanges().length);
+      }
       const data = snapshot.docs.map(sDoc => sDoc.data() as Room);
       onRoomsUpdate(data);
     },
