@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { ExamSession, Student, StudentStatus, Room, Question } from '../types';
+import { getQuotaStats } from '../services/firebaseService';
 
 const formatDate = (dateStr: string) => {
   if (!dateStr || dateStr === 'TIDAK_ADA_TANGGAL') return 'Tanpa Tanggal';
@@ -31,7 +32,7 @@ interface AdminDashboardProps {
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
   sessions, students, rooms, isSyncing, isProcessing = false, onLogout, onAction 
 }) => {
-  const [activeTab, setActiveTab] = useState<'SESSIONS' | 'STUDENTS' | 'ROOMS'>('SESSIONS');
+  const [activeTab, setActiveTab] = useState<'SESSIONS' | 'STUDENTS' | 'ROOMS' | 'QUOTA'>('SESSIONS');
   
   // Modal states
   const [showAddSession, setShowAddSession] = useState(false);
@@ -268,10 +269,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
              <div className="w-8 h-8 md:w-10 md:h-10 bg-indigo-600 rounded-lg md:rounded-xl flex items-center justify-center text-white font-black italic shadow-lg shadow-indigo-200">E</div>
              <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight hidden sm:block">Examsy Super Admin</h1>
           </div>
-          <nav className="flex bg-slate-100 p-1 rounded-xl md:rounded-2xl">
-            {(['SESSIONS', 'STUDENTS', 'ROOMS'] as const).map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 md:px-6 py-1.5 md:py-2 rounded-lg md:rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
-                {tab === 'SESSIONS' ? 'Ujian' : tab === 'STUDENTS' ? 'Siswa' : 'Ruang'}
+          <nav className="flex bg-slate-100 p-1 rounded-xl md:rounded-2xl overflow-x-auto max-w-xs sm:max-w-md md:max-w-lg lg:max-w-none">
+            {(['SESSIONS', 'STUDENTS', 'ROOMS', 'QUOTA'] as const).map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)} className={`px-2.5 md:px-5 py-1.5 md:py-2 rounded-lg md:rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+                {tab === 'SESSIONS' ? 'Ujian' : tab === 'STUDENTS' ? 'Siswa' : tab === 'ROOMS' ? 'Ruang' : 'Cek Kuota'}
               </button>
             ))}
           </nav>
@@ -563,6 +564,283 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   );
                 })}
              </div>
+           </div>
+        )}
+
+        {activeTab === 'QUOTA' && (
+           <div className="max-w-7xl mx-auto space-y-10 pb-20">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                <div>
+                  <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter uppercase leading-none">Cek Kuota Firebase</h2>
+                  <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-2">Pantau Batas Penggunaan Firebase Spark Plan (Gratis)</p>
+                </div>
+                <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
+                  <button 
+                     onClick={() => {
+                       localStorage.setItem("firebase_quota_tracker_v1", JSON.stringify({
+                         date: new Date().toISOString().split('T')[0],
+                         reads: 0,
+                         writes: 0,
+                         deletes: 0
+                       }));
+                       alert('Simulasi Penghitung Kuota Hari Ini Berhasil Direset.');
+                       window.location.reload();
+                     }} 
+                     className="px-4 py-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-[10px] font-black uppercase text-slate-600 transition-all border border-slate-200"
+                  >
+                     Reset Simulasi Hari Ini
+                  </button>
+                </div>
+              </div>
+
+              {/* Grid 4 Kartu Utama */}
+              {(() => {
+                const stats = getQuotaStats(students.length + sessions.length + rooms.length);
+                const getProgressBarColor = (percent: number) => {
+                  if (percent >= 85) return 'bg-red-500 animate-pulse';
+                  if (percent >= 50) return 'bg-amber-500';
+                  return 'bg-emerald-500';
+                };
+                const getTextColor = (percent: number) => {
+                  if (percent >= 85) return 'text-red-500 font-black';
+                  if (percent >= 50) return 'text-amber-500 font-black';
+                  return 'text-emerald-500 font-black';
+                };
+                return (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      {/* CARD READS */}
+                      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col justify-between overflow-hidden relative group hover:shadow-xl transition-all">
+                        <div className="relative z-10">
+                          <div className="flex items-center justify-between mb-4">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Firestore Reads (Baca)</span>
+                            <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xs shadow-sm">R</div>
+                          </div>
+                          <div className="flex items-baseline gap-1 mt-2">
+                            <span className="text-4xl font-black tracking-tight text-slate-900">{stats.readsUsed.toLocaleString()}</span>
+                            <span className="text-xs text-slate-400 font-black">/ {stats.readsLimit.toLocaleString()}</span>
+                          </div>
+                          <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">Per Hari (Gratis)</p>
+                        </div>
+                        <div className="mt-8 relative z-10">
+                          <div className="flex justify-between text-xs font-black mb-1.5 uppercase tracking-wide">
+                            <span className="text-slate-500">Status Beban</span>
+                            <span className={getTextColor(stats.readsPercent)}>{stats.readsPercent}%</span>
+                          </div>
+                          <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all duration-500 ${getProgressBarColor(stats.readsPercent)}`} style={{ width: `${Math.min(stats.readsPercent, 100)}%` }}></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* CARD WRITES */}
+                      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col justify-between overflow-hidden relative group hover:shadow-xl transition-all">
+                        <div className="relative z-10">
+                          <div className="flex items-center justify-between mb-4">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Firestore Writes (Tulis)</span>
+                            <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold text-xs shadow-sm">W</div>
+                          </div>
+                          <div className="flex items-baseline gap-1 mt-2">
+                            <span className="text-4xl font-black tracking-tight text-slate-900">{stats.writesUsed.toLocaleString()}</span>
+                            <span className="text-xs text-slate-400 font-black">/ {stats.writesLimit.toLocaleString()}</span>
+                          </div>
+                          <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">Per Hari (Gratis)</p>
+                        </div>
+                        <div className="mt-8 relative z-10">
+                          <div className="flex justify-between text-xs font-black mb-1.5 uppercase tracking-wide">
+                            <span className="text-slate-500">Status Beban</span>
+                            <span className={getTextColor(stats.writesPercent)}>{stats.writesPercent}%</span>
+                          </div>
+                          <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all duration-500 ${getProgressBarColor(stats.writesPercent)}`} style={{ width: `${Math.min(stats.writesPercent, 100)}%` }}></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* CARD DELETES */}
+                      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col justify-between overflow-hidden relative group hover:shadow-xl transition-all">
+                        <div className="relative z-10">
+                          <div className="flex items-center justify-between mb-4">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Firestore Deletes (Hapus)</span>
+                            <div className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center text-red-600 font-bold text-xs shadow-sm">D</div>
+                          </div>
+                          <div className="flex items-baseline gap-1 mt-2">
+                            <span className="text-4xl font-black tracking-tight text-slate-900">{stats.deletesUsed.toLocaleString()}</span>
+                            <span className="text-xs text-slate-400 font-black">/ {stats.deletesLimit.toLocaleString()}</span>
+                          </div>
+                          <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">Per Hari (Gratis)</p>
+                        </div>
+                        <div className="mt-8 relative z-10">
+                          <div className="flex justify-between text-xs font-black mb-1.5 uppercase tracking-wide">
+                            <span className="text-slate-500">Status Beban</span>
+                            <span className={getTextColor(stats.deletesPercent)}>{stats.deletesPercent}%</span>
+                          </div>
+                          <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all duration-500 ${getProgressBarColor(stats.deletesPercent)}`} style={{ width: `${Math.min(stats.deletesPercent, 100)}%` }}></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* CARD STORAGE */}
+                      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col justify-between overflow-hidden relative group hover:shadow-xl transition-all">
+                        <div className="relative z-10">
+                          <div className="flex items-center justify-between mb-4">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Database Storage</span>
+                            <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 font-bold text-xs shadow-sm">S</div>
+                          </div>
+                          <div className="flex items-baseline gap-1 mt-2">
+                            <span className="text-4xl font-black tracking-tight text-slate-900">
+                              {(stats.estimatedStorageBytes / 1024).toFixed(2)}
+                            </span>
+                            <span className="text-xs text-slate-400 font-black">KB / 1 GB</span>
+                          </div>
+                          <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                            {stats.estimatedDocCount.toLocaleString()} Total Dokumen
+                          </p>
+                        </div>
+                        <div className="mt-8 relative z-10">
+                          <div className="flex justify-between text-xs font-black mb-1.5 uppercase tracking-wide">
+                            <span className="text-slate-500">Status Kapasitas</span>
+                            <span className="text-emerald-500 font-black">{stats.storagePercent}%</span>
+                          </div>
+                          <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-500 bg-emerald-500" style={{ width: `${Math.max(stats.storagePercent, 0.5)}%` }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Informasi Edukatif & Link Konsol */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                       <div className="bg-gradient-to-br from-slate-900 to-indigo-950 p-10 rounded-[3rem] text-white lg:col-span-2 shadow-xl border border-slate-800 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center gap-3 mb-6">
+                              <span className="px-3 py-1.5 bg-indigo-500/20 text-indigo-300 rounded-xl border border-indigo-500/30 text-[9px] font-black tracking-widest uppercase">Edukasi Firebase</span>
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                              <span className="text-[10px] font-black tracking-wider uppercase text-slate-300 font-sans">Live Quota Tracker</span>
+                            </div>
+                            <h3 className="text-2xl font-black tracking-tight leading-snug mb-4">Bagaimana Batas Kuota Firestore Bekerja?</h3>
+                            <div className="space-y-4 text-xs font-semibold text-slate-300 leading-relaxed font-sans">
+                              <p>
+                                Firebase Firestore menyediakan kuota harian gratis (<code className="bg-indigo-950/80 text-indigo-300 px-1.5 py-0.5 rounded font-mono font-bold">Spark Plan</code>) yang diperbarui setiap hari. Batasan gratis tersebut meliputi:
+                              </p>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 my-2 text-white">
+                                <div className="p-3 bg-white/5 border border-white/10 rounded-xl">
+                                  <p className="text-[9px] font-black text-slate-400 uppercase">Baca / Hari</p>
+                                  <p className="text-sm font-black text-indigo-300 mt-1">50.000 Dokumen</p>
+                                </div>
+                                <div className="p-3 bg-white/5 border border-white/10 rounded-xl">
+                                  <p className="text-[9px] font-black text-slate-400 uppercase">Tulis / Hari</p>
+                                  <p className="text-sm font-black text-emerald-300 mt-1">20.000 Dokumen</p>
+                                </div>
+                                <div className="p-3 bg-white/5 border border-white/10 rounded-xl">
+                                  <p className="text-[9px] font-black text-slate-400 uppercase">Hapus / Hari</p>
+                                  <p className="text-sm font-black text-red-300 mt-1">20.000 Dokumen</p>
+                                </div>
+                              </div>
+                              <p>
+                                Jika aplikasi Anda mencapai batas <strong className="text-amber-300">100%</strong> pada salah satu metrik di atas dalam sehari, Firebase akan mengembalikan error <strong className="text-red-400">"Quota exceeded"</strong>. Pengguna tidak akan bisa login atau menyimpan jawaban baru sampai kuota di-reset otomatis keesokan harinya.
+                              </p>
+                              <p className="border-t border-white/10 pt-4 text-[10px] text-amber-300 font-extrabold uppercase tracking-wider flex items-center gap-2">
+                                💡 TIPS MENGHEMAT KUOTA:
+                              </p>
+                              <ul className="list-disc pl-5 space-y-1.5 text-slate-400">
+                                <li>Hindari membuka banyak tab dasbor admin secara bersamaan (karena setiap visual panel mendaftarkan sinkronisasi real-time).</li>
+                                <li>Batasi aksi yang memicu tulis ulang massal (seperti impor CSV berulang kali dengan data yang sama).</li>
+                                <li>Browser siswa didukung dengan persistensi offline untuk menghemat kuota jaringan.</li>
+                              </ul>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-8 pt-6 border-t border-white/10">
+                             <a 
+                               href="https://console.firebase.google.com/project/examsy-new/usage" 
+                               target="_blank" 
+                               rel="noopener noreferrer" 
+                               className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.02] text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95"
+                             >
+                               Buka Firebase Usage Console 🔗
+                             </a>
+                             <p className="text-[10px] font-bold text-slate-500 mt-3 uppercase tracking-wider leading-relaxed">Hubungkan atau kelola database projects di Google Firebase Dashboard secara resmi.</p>
+                          </div>
+                       </div>
+
+                       <div className="bg-white p-10 rounded-[3rem] border border-slate-200 shadow-sm flex flex-col justify-between">
+                          <div>
+                            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none mb-2">Simulasi Beban</h3>
+                            <p className="text-slate-400 text-[10px] uppercase font-bold tracking-widest mb-6">Uji visual notifikasi beban kuota</p>
+                            
+                            <div className="space-y-4">
+                              <p className="text-xs font-semibold text-slate-500 leading-relaxed">
+                                Anda dapat merangsang beban sirkuit atau tes beban simulasi di bawah ini untuk menguji bagaimana status warna indikator di atas memicu peringatan kritis (hijau → kuning → merah).
+                              </p>
+                              
+                              <div className="space-y-2 pt-2">
+                                <button 
+                                  onClick={() => {
+                                    const todayStr = new Date().toISOString().split('T')[0];
+                                    const stored = localStorage.getItem("firebase_quota_tracker_v1");
+                                    let current = { date: todayStr, reads: 0, writes: 0, deletes: 0 };
+                                    if (stored) {
+                                      try { current = JSON.parse(stored); } catch(e) {}
+                                    }
+                                    current.reads = (current.reads || 0) + 5000;
+                                    localStorage.setItem("firebase_quota_tracker_v1", JSON.stringify(current));
+                                    alert('+5.000 Reads Simulasi telah ditambahkan!');
+                                    window.location.reload();
+                                  }} 
+                                  className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3.5 rounded-xl font-black text-[10px] uppercase text-indigo-600 transition-all text-center"
+                                >
+                                  +5.000 Reads (Simulasi)
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    const todayStr = new Date().toISOString().split('T')[0];
+                                    const stored = localStorage.getItem("firebase_quota_tracker_v1");
+                                    let current = { date: todayStr, reads: 0, writes: 0, deletes: 0 };
+                                    if (stored) {
+                                      try { current = JSON.parse(stored); } catch(e) {}
+                                    }
+                                    current.writes = (current.writes || 0) + 2000;
+                                    localStorage.setItem("firebase_quota_tracker_v1", JSON.stringify(current));
+                                    alert('+2.000 Writes Simulasi telah ditambahkan!');
+                                    window.location.reload();
+                                  }} 
+                                  className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3.5 rounded-xl font-black text-[10px] uppercase text-emerald-600 transition-all text-center"
+                                >
+                                  +2.000 Writes (Simulasi)
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    const todayStr = new Date().toISOString().split('T')[0];
+                                    const stored = localStorage.getItem("firebase_quota_tracker_v1");
+                                    let current = { date: todayStr, reads: 0, writes: 0, deletes: 0 };
+                                    if (stored) {
+                                      try { current = JSON.parse(stored); } catch(e) {}
+                                    }
+                                    current.reads = 42500; // 85% Warning
+                                    localStorage.setItem("firebase_quota_tracker_v1", JSON.stringify(current));
+                                    alert('Beban baca diatur ke 42.500 (Peringatan Kritis 85%)!');
+                                    window.location.reload();
+                                  }} 
+                                  className="w-full bg-red-50 hover:bg-red-100 border border-red-200 py-3.5 rounded-xl font-black text-[10px] uppercase text-red-600 transition-all text-center animate-pulse"
+                                >
+                                  ⚠️ Atur Reads Kritis (85%)
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">
+                               Penghitung ini bersifat asinkron untuk mencatat query yang di-fetch dalam sesi siswa maupun proktor.
+                             </p>
+                          </div>
+                       </div>
+                    </div>
+                  </>
+                );
+              })()}
            </div>
         )}
       </main>
