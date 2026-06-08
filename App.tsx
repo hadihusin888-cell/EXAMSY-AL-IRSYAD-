@@ -150,48 +150,12 @@ const App: React.FC = () => {
     const unsub = syncData(
       (studentData) => {
         setStudents(studentData);
-        
-        // Cek jika ada session siswa yang tersimpan
-        const savedAuth = localStorage.getItem('examsy_auth');
-        if (savedAuth) {
-          try {
-            const auth = JSON.parse(savedAuth);
-            if (auth.role === 'STUDENT' && auth.nis && auth.sessionId) {
-              const student = studentData.find(s => String(s.nis) === String(auth.nis));
-              if (student && view === 'STUDENT_LOGIN') {
-                setCurrentUser(student);
-                // Sesi akan diset di effect sessions
-              }
-            }
-          } catch (e) {}
-        }
-
         setIsLoading(false);
         setIsSyncing(false);
         setSyncError(null);
       },
       (sessionData) => {
         setSessions(sessionData);
-
-        // Cek jika ada session siswa yang tersimpan
-        const savedAuth = localStorage.getItem('examsy_auth');
-        if (savedAuth) {
-          try {
-            const auth = JSON.parse(savedAuth);
-            if (auth.role === 'STUDENT' && auth.nis && auth.sessionId) {
-              const session = sessionData.find(s => s.id === auth.sessionId);
-              if (session && currentUser && view === 'STUDENT_LOGIN') {
-                setCurrentSession(session);
-                setView('EXAM_ROOM');
-                // Re-sync status just in case
-                handleAction('UPDATE_STUDENT', {
-                  ...currentUser,
-                  status: StudentStatus.SEDANG_UJIAN
-                });
-              }
-            }
-          } catch (e) {}
-        }
       },
       (roomData) => {
         setRooms(roomData);
@@ -199,14 +163,16 @@ const App: React.FC = () => {
         // Cek jika ada session proktor yang tersimpan
         const savedAuth = localStorage.getItem('examsy_auth');
         if (savedAuth) {
-          const auth = JSON.parse(savedAuth);
-          if (auth.role === 'PROCTOR' && auth.roomId) {
-            const room = roomData.find(r => r.id === auth.roomId);
-            if (room) {
-              setActiveRoom(room);
-              setView('PROCTOR_DASHBOARD');
+          try {
+            const auth = JSON.parse(savedAuth);
+            if (auth.role === 'PROCTOR' && auth.roomId) {
+              const room = roomData.find(r => r.id === auth.roomId);
+              if (room) {
+                setActiveRoom(room);
+                setView('PROCTOR_DASHBOARD');
+              }
             }
-          }
+          } catch (e) {}
         }
       },
       (error) => {
@@ -218,7 +184,84 @@ const App: React.FC = () => {
     );
 
     return () => unsub();
-  }, [currentUser, view]);
+  }, []);
+
+  // Centralized effect to manage and validate student sessions in real-time
+  useEffect(() => {
+    // Only proceed if loading has finished and we have synced data
+    if (isLoading || students.length === 0 || sessions.length === 0) return;
+
+    const savedAuth = localStorage.getItem('examsy_auth');
+    if (!savedAuth) {
+      // If no stored student auth and we are currently in EXAM_ROOM, return to login immediately
+      if (view === 'EXAM_ROOM') {
+        setCurrentUser(null);
+        setCurrentSession(null);
+        setView('STUDENT_LOGIN');
+      }
+      return;
+    }
+
+    try {
+      const auth = JSON.parse(savedAuth);
+      if (auth.role !== 'STUDENT' || !auth.nis || !auth.sessionId) {
+        return; // This effect only governs student roles
+      }
+
+      const student = students.find(s => String(s.nis).trim() === String(auth.nis).trim());
+      const session = sessions.find(s => s.id === auth.sessionId);
+
+      if (student && session) {
+        // Validate class and active status of the student's exam session
+        const isSessionValid = session.isActive && String(session.class).trim() === String(student.class).trim();
+
+        if (isSessionValid) {
+          // Keep local state perfectly synchronized with database updates
+          if (!currentUser || currentUser.nis !== student.nis || currentUser.status !== student.status || currentUser.violations !== student.violations) {
+            setCurrentUser(student);
+          }
+          if (!currentSession || currentSession.id !== session.id || JSON.stringify(currentSession) !== JSON.stringify(session)) {
+            setCurrentSession(session);
+          }
+
+          if (view === 'STUDENT_LOGIN') {
+            setView('EXAM_ROOM');
+            if (student.status !== StudentStatus.SEDANG_UJIAN) {
+              handleAction('UPDATE_STUDENT', {
+                ...student,
+                status: StudentStatus.SEDANG_UJIAN
+              });
+            }
+          }
+        } else {
+          // The exam session is no longer valid (either deactivated by the proctor, or PIN changed, or class changed)
+          console.log("Exam session is no longer valid or active. Logging out student.");
+          localStorage.removeItem('examsy_auth');
+          setCurrentUser(null);
+          setCurrentSession(null);
+          setView('STUDENT_LOGIN');
+
+          // Reset student status to BELUM_MASUK in Firestore so they are able to log in to another active session (subject)
+          if (student.status === StudentStatus.SEDANG_UJIAN || student.status === StudentStatus.SELESAI) {
+            handleAction('UPDATE_STUDENT', {
+              ...student,
+              status: StudentStatus.BELUM_MASUK,
+              violations: 0
+            });
+          }
+        }
+      } else if (students.length > 0 && sessions.length > 0) {
+        // Student or Session no longer exists in the database
+        console.log("Student or Session not found in database. Resetting session.");
+        localStorage.removeItem('examsy_auth');
+        setCurrentUser(null);
+        setCurrentSession(null);
+        setView('STUDENT_LOGIN');
+      }
+    } catch (e) {
+      console.error("Error in real-time student session validation effect:", e);
+    }
+  }, [students, sessions, view, currentUser, currentSession, isLoading]);
 
   const handleAction = async (action: string, payload: any) => {
     setIsProcessing(true);

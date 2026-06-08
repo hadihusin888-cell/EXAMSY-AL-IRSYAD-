@@ -77,31 +77,21 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ sessions, students, onLogin
       return;
     }
 
-    if (student.status === StudentStatus.SELESAI) {
-      setError('Anda telah menyelesaikan sesi ujian ini.');
-      return;
-    }
-
     // 3. Sinkronisasi Data Kelas Siswa
     if (String(student.class).trim() !== inputClass) {
       setError(`Sinkronisasi Gagal: Anda terdaftar di Kelas ${student.class}, bukan Kelas ${inputClass}.`);
       return;
     }
 
-    // 4. Cari Sesi Aktif berdasarkan PIN
+    // 4. Cari Sesi Aktif berdasarkan PIN dan Kelas
     const session = sessions.find(s => 
       String(s.pin || '').trim().toUpperCase() === inputPin && 
+      String(s.class || '').trim() === inputClass &&
       s.isActive
     );
     
     if (!session) {
-      setError('PIN Sesi tidak aktif atau tidak ditemukan.');
-      return;
-    }
-
-    // 5. Sinkronisasi Data Kelas Sesi
-    if (String(session.class).trim() !== inputClass) {
-      setError(`Sesi ${session.name} hanya untuk Kelas ${session.class}. Silakan pilih kelas yang sesuai.`);
+      setError('PIN Sesi tidak aktif, salah, atau tidak sesuai dengan kelas Anda.');
       return;
     }
 
