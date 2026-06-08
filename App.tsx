@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { ViewState, Student, ExamSession, StudentStatus, Room } from './types';
-import { syncData, dbAction } from './services/firebaseService';
+import { syncData, dbAction, getActiveFirebaseConfig, ORIGINAL_CONFIG } from './services/firebaseService';
 
 const StudentLogin = lazy(() => import('./views/StudentLogin'));
 const AdminLogin = lazy(() => import('./views/AdminLogin'));
@@ -23,6 +23,110 @@ const App: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [sessions, setSessions] = useState<ExamSession[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
+
+  // State untuk diagnosa loading terlambat
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [seedStatus, setSeedStatus] = useState<'idle' | 'seeding' | 'success' | 'error'>('idle');
+
+  const activeConfig = getActiveFirebaseConfig();
+
+  // Trigger diagnosa jika sinkronisasi memakan waktu lebih dari 5.5 detik
+  useEffect(() => {
+    if (isLoading && !syncError) {
+      const timer = setTimeout(() => {
+        setShowDiagnostics(true);
+      }, 5500);
+      return () => clearTimeout(timer);
+    } else {
+      setShowDiagnostics(false);
+    }
+  }, [isLoading, syncError]);
+
+  const handleForceDemoDatabase = () => {
+    localStorage.setItem("examsy_firebase_config_override", JSON.stringify(ORIGINAL_CONFIG));
+    localStorage.removeItem("examsy_auth");
+    window.location.reload();
+  };
+
+  const handleRestoreDefaultConfig = () => {
+    localStorage.removeItem("examsy_firebase_config_override");
+    localStorage.removeItem("examsy_auth");
+    window.location.reload();
+  };
+
+  const handleSeedSampleData = async () => {
+    setSeedStatus('seeding');
+    try {
+      // Buat Ruang 01
+      await dbAction('ADD_ROOM', {
+        id: "R01",
+        name: "Ruang 01 (Kelas Utama)",
+        capacity: 40,
+        username: "proktor1",
+        password: "123"
+      });
+
+      // Buat Sesi Soal
+      await dbAction('ADD_SESSION', {
+        id: "S01",
+        name: "Ujian Matematika Bersama",
+        class: "X-A",
+        pin: "2026",
+        durationMinutes: 60,
+        isActive: true,
+        questions: [
+          {
+            id: "q1",
+            text: "Berapakah hasil dari 15 x 6?",
+            options: ["60", "80", "90", "120"],
+            correctAnswer: 2
+          },
+          {
+            id: "q2",
+            text: "Unsur terkecil dari sebuah lingkaran disebut apa?",
+            options: ["Diameter", "Jari-jari", "Titik pusat", "Tali busur"],
+            correctAnswer: 2
+          },
+          {
+            id: "q3",
+            text: "Jika x + 5 = 12, berapakah nilai x?",
+            options: ["5", "6", "7", "8"],
+            correctAnswer: 2
+          }
+        ],
+        date: new Date().toISOString().split('T')[0]
+      });
+
+      // Buat Siswa
+      await dbAction('ADD_STUDENT', {
+        nis: "1001",
+        name: "Hadi Husin (Siswa)",
+        class: "X-A",
+        password: "123",
+        status: StudentStatus.BELUM_MASUK,
+        roomId: "R01",
+        violations: 0
+      });
+
+      await dbAction('ADD_STUDENT', {
+        nis: "1002",
+        name: "Ahmad Rizky (Siswa)",
+        class: "X-A",
+        password: "123",
+        status: StudentStatus.BELUM_MASUK,
+        roomId: "R01",
+        violations: 0
+      });
+
+      setSeedStatus('success');
+      alert("Inisialisasi berhasil! Koleksi dan baris data contoh sudah dimasukkan. Halaman akan otomatis dimuat ulang.");
+      window.location.reload();
+    } catch (err) {
+      console.error("Gagal inisialisasi database baru:", err);
+      setSeedStatus('error');
+      alert("Gagal menginisialisasi. Pastikan Anda telah mengaktifkan Firestore di Firebase Console dan atur security rules ke mode uji coba.");
+    }
+  };
 
   // Effect untuk mengecek session yang tersimpan di localStorage
   useEffect(() => {
@@ -171,25 +275,25 @@ const App: React.FC = () => {
           </p>
           <div className="text-left text-xs bg-slate-900/80 p-3 rounded-lg font-mono text-slate-400 overflow-auto max-h-32 mb-4 scrollbar-thin border border-slate-800">
             <strong>Error Code:</strong> {syncError.code || 'permission-denied'}<br />
-            <strong>Project ID:</strong> examsy-new
+            <strong>Project ID:</strong> {activeConfig.projectId}
           </div>
 
           {isPermissionError ? (
             <div className="text-xs text-slate-300 mt-2 border-t border-slate-800/80 pt-3 space-y-3">
               <p className="font-semibold text-amber-400">🔑 Solusi Masalah Perizinan (Permission Denied):</p>
               <p className="leading-relaxed">
-                Database Firebase baru Anda (<code className="text-indigo-400 font-mono bg-indigo-950/45 px-1 py-0.5 rounded">examsy-new</code>) saat ini memblokir akses baca-tulis karena aturan keamanannya. Ikuti 3 langkah mudah ini untuk membukanya:
+                Database Firebase baru Anda (<code className="text-indigo-400 font-mono bg-indigo-950/45 px-1 py-0.5 rounded">{activeConfig.projectId}</code>) saat ini memblokir akses baca-tulis karena aturan keamanannya. Ikuti 3 langkah mudah ini untuk membukanya:
               </p>
               <ol className="list-decimal pl-4 space-y-2">
                 <li>
                   Buka tab <strong>Rules</strong> pada Firestore Database di Konsol Firebase Anda:<br />
                   <a 
-                    href="https://console.firebase.google.com/project/examsy-new/firestore/rules" 
+                    href={`https://console.firebase.google.com/project/${activeConfig.projectId}/firestore/rules`} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-indigo-400 hover:underline font-semibold inline-block mt-1 font-mono break-all"
+                    className="text-indigo-400 hover:underline font-semibold inline-block mt-1 font-mono break-all text-xs"
                   >
-                    🔗 console.firebase.google.com/project/examsy-new/firestore/rules
+                    🔗 console.firebase.google.com/project/{activeConfig.projectId}/firestore/rules
                   </a>
                 </li>
                 <li>
@@ -214,14 +318,22 @@ service cloud.firestore {
             <div className="text-xs text-slate-400 mt-2 border-t border-slate-800 pt-3">
               <p className="font-semibold mb-1 text-slate-300">💡 Penyebab Umum & Solusi:</p>
               <ul className="list-disc pl-4 space-y-1">
-                <li>Firestore Database belum diaktifkan di Console Firebase proyek <code className="text-indigo-400">examsy-new</code>. Silakan buka tab <strong>Firestore Database</strong> dan klik <strong>Create Database</strong>.</li>
+                <li>Firestore Database belum diaktifkan di Console Firebase proyek <code className="text-indigo-400">{activeConfig.projectId}</code>. Silakan buka tab <strong>Firestore Database</strong> dan klik <strong>Create Database</strong>.</li>
                 <li>Akun Google/Firebase Anda belum dibuat database atau masih dalam proses pembuatan.</li>
                 <li>Koneksi internet Anda sedang diblokir oleh VPN, firewall, atau browser ad-blocker.</li>
               </ul>
             </div>
           )}
         </div>
-        <div className="flex gap-4">
+        
+        <div className="flex flex-col sm:flex-row gap-3 w-full max-w-lg justify-center">
+          <button 
+            type="button"
+            onClick={handleForceDemoDatabase} 
+            className="cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 px-4 rounded-xl transition text-xs shadow-lg shadow-indigo-950/20"
+          >
+            🚀 Masuk dengan Demo DB bawaan
+          </button>
           <button 
             type="button"
             onClick={() => {
@@ -229,14 +341,14 @@ service cloud.firestore {
               sessionStorage.clear();
               window.location.reload();
             }} 
-            className="cursor-pointer bg-red-600 hover:bg-red-500 text-white font-bold py-2.5 px-6 rounded-xl transition text-sm shadow-lg shadow-red-950/20"
+            className="cursor-pointer bg-red-600 hover:bg-red-500 text-white font-bold py-2.5 px-4 rounded-xl transition text-xs shadow-lg shadow-red-950/20"
           >
             Bersihkan Cache & Refresh
           </button>
           <button 
             type="button"
             onClick={() => window.location.reload()} 
-            className="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 px-6 rounded-xl transition text-sm border border-slate-700"
+            className="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 px-4 rounded-xl transition text-xs border border-slate-700"
           >
             Muat Ulang
           </button>
@@ -247,10 +359,98 @@ service cloud.firestore {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-10 text-center">
-        <div className="w-12 h-12 border-4 border-white/10 border-t-indigo-500 rounded-full animate-spin mb-6"></div>
-        <h2 className="text-white font-black uppercase tracking-[0.2em] text-xs">Examsy Cloud Sync...</h2>
-        <p className="text-slate-500 text-[10px] mt-2 uppercase font-bold">Mempersiapkan Database Real-time</p>
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center select-none font-sans">
+        <div className="max-w-xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden text-left">
+          {/* Decorative glow */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl"></div>
+
+          <div className="flex items-center gap-4 mb-6">
+            <div className="relative">
+              <div className="w-12 h-12 border-3 border-slate-800 border-t-indigo-500 rounded-full animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center text-xs">☁️</div>
+            </div>
+            <div>
+              <h2 className="text-white font-bold leading-tight">Examsy Cloud Sync...</h2>
+              <p className="text-slate-400 text-xs">Mempersiapkan Koneksi Database Real-time</p>
+            </div>
+          </div>
+
+          <div className="text-xs bg-slate-950/60 p-3 rounded-lg font-mono text-slate-400 border border-slate-800/80 mb-5 flex flex-col gap-1">
+            <div><span className="text-indigo-400">Project ID:</span> {activeConfig.projectId}</div>
+            <div><span className="text-indigo-400">Database Engine:</span> Cloud Firestore (modular)</div>
+            <div><span className="text-amber-500">Koneksi:</span> Menunggu respons snapshot...</div>
+          </div>
+
+          {!showDiagnostics ? (
+            <div className="text-center py-4">
+              <p className="text-slate-500 text-xs animate-pulse">Menghubungkan ke layanan cloud... Kami akan menampilkan opsi diagnosa jika hal ini memerlukan waktu lama.</p>
+            </div>
+          ) : (
+            <div className="space-y-4 pt-4 border-t border-slate-800/80">
+              <div className="bg-amber-500/15 border border-amber-500/25 p-4 rounded-xl text-xs space-y-2 text-slate-300">
+                <p className="font-bold text-amber-400 flex items-center gap-1.5">
+                  ⚠️ Koneksi Tertunda (Loading Terus-menerus)
+                </p>
+                <p className="leading-relaxed">
+                  Aplikasi sedang mencoba terhubung ke Firebase Anda (<code className="text-amber-300 bg-amber-950/40 px-1 rounded">{activeConfig.projectId}</code>). Namun, server Firestore belum memberikan respon balik.
+                </p>
+                <p className="font-semibold text-white mt-2">Penyebab Utama & Solusi:</p>
+                <ul className="list-decimal pl-4 space-y-1.5 text-slate-300">
+                  <li>
+                    <strong className="text-white">Firestore Belum Dibuat:</strong> 
+                    Apakah Anda sudah masuk ke tab <span className="font-semibold text-indigo-400">Firestore Database</span> di Console Firebase Anda untuk proyek tersebut, lalu mengklik <strong className="text-white">"Create Database"</strong>? Jika belum, SDK akan terus memutar halaman ini selamanya.
+                  </li>
+                  <li>
+                    <strong className="text-white">Konfigurasi Salah:</strong> 
+                    Pastikan API Key, App ID, dan Project ID sudah tepat dan sesuai dengan Web App yang Anda daftarkan di Firebase.
+                  </li>
+                  <li>
+                    <strong className="text-white">Gagal Bypass Rules:</strong> 
+                    Pastikan di tab <strong className="text-indigo-400">Rules</strong> Anda telah menyetel <code className="bg-slate-950 px-1 text-emerald-400 font-mono rounded">allow read, write: if true;</code>.
+                  </li>
+                </ul>
+              </div>
+
+              <div className="space-y-2">
+                <p className="font-semibold text-slate-300 text-xs uppercase tracking-wider">Pilih Aksi Pemulihan Quick-Fix:</p>
+                
+                <div className="grid grid-cols-1 gap-2">
+                  <button
+                    type="button"
+                    onClick={handleForceDemoDatabase}
+                    className="cursor-pointer text-left w-full p-3 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/20 rounded-xl transition-all duration-200"
+                  >
+                    <div className="font-bold text-indigo-400 text-xs">🚀 Reset Kembali ke Database Utama Bawaan (examsy-new)</div>
+                    <div className="text-[10px] text-slate-400 mt-1">Mengabaikan database kosong kustom & langsung mengaktifkan database demo siap pakai agar web berjalan lancar seketika.</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSeedSampleData}
+                    disabled={seedStatus === 'seeding'}
+                    className="cursor-pointer text-left w-full p-3 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/20 rounded-xl transition-all duration-200 disabled:opacity-50"
+                  >
+                    <div className="font-bold text-emerald-400 text-xs flex items-center justify-between">
+                      <span>🌱 Hubungkan & Isi Data Contoh ke Database Anda</span>
+                      {seedStatus === 'seeding' && <span className="animate-spin text-xs">🌀</span>}
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-1">Gunakan ini JIKA Anda sudah yakin mengklik "Create Database" di Firebase Console Anda, untuk secara otomatis membuat tabel/koleksi awal kosong dengan data contoh.</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleRestoreDefaultConfig}
+                    className="cursor-pointer text-left w-full p-3 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/80 rounded-xl transition-all duration-200"
+                  >
+                    <div className="font-bold text-slate-300 text-xs">📂 Reset Kembali Ke Konfigurasi File JSON Asli</div>
+                    <div className="text-[10px] text-slate-400 mt-1">Menghapus cache lokal dan memuat ulang menggunakan setelan default yang tersimpan di file config.</div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   }

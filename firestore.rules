@@ -1,8 +1,72 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Default deny catch-all
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
+    }
+
+    // Helper to validate IDs
+    function isValidId(id) { 
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    // 1. Rooms collection
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow create, update: if isValidId(roomId) && isValidRoom(request.resource.data);
+      allow delete: if true;
+    }
+
+    function isValidRoom(data) {
+      return data.keys().hasAll(['id', 'name', 'capacity', 'username', 'password'])
+        && data.keys().size() == 5
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 200
+        && data.capacity is int && data.capacity >= 0 && data.capacity <= 1000
+        && data.username is string && data.username.size() >= 1 && data.username.size() <= 128
+        && data.password is string && data.password.size() >= 1 && data.password.size() <= 128;
+    }
+
+    // 2. Students collection
+    match /students/{nis} {
+      allow read: if true;
+      allow create, update: if isValidId(nis) && isValidStudent(request.resource.data);
+      allow delete: if true;
+    }
+
+    function isValidStudent(data) {
+      return data.keys().hasAll(['nis', 'name', 'class', 'password', 'status', 'roomId', 'violations'])
+        && data.keys().size() == 7
+        && data.nis is string && data.nis.size() >= 1 && data.nis.size() <= 64
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 200
+        && data.class is string && data.class.size() >= 1 && data.class.size() <= 64
+        && data.password is string && data.password.size() >= 1 && data.password.size() <= 128
+        && data.status is string && (data.status == 'BELUM_MASUK' || data.status == 'SEDANG_UJIAN' || data.status == 'SELESAI' || data.status == 'BLOKIR')
+        && data.roomId is string && data.roomId.size() >= 1 && data.roomId.size() <= 128
+        && data.violations is int && data.violations >= 0 && data.violations <= 1000;
+    }
+
+    // 3. Exam Sessions collection
+    match /sessions/{sessionId} {
+      allow read: if true;
+      allow create, update: if isValidId(sessionId) && isValidSession(request.resource.data);
+      allow delete: if true;
+    }
+
+    function isValidSession(data) {
+      return data.keys().hasAll(['id', 'name', 'class', 'pin', 'durationMinutes', 'isActive', 'questions', 'date'])
+        && (data.keys().size() == 8 || (data.keys().size() == 9 && data.keys().hasAll(['pdfUrl'])))
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 200
+        && data.class is string && data.class.size() >= 1 && data.class.size() <= 64
+        && data.pin is string && data.pin.size() >= 1 && data.pin.size() <= 32
+        && data.durationMinutes is int && data.durationMinutes >= 1 && data.durationMinutes <= 1440
+        && data.isActive is bool
+        && data.questions is list && data.questions.size() <= 200
+        && data.date is string && data.date.size() >= 8 && data.date.size() <= 32
+        && (!data.keys().hasAll(['pdfUrl']) || (data.pdfUrl is string && data.pdfUrl.size() <= 1000));
     }
   }
 }

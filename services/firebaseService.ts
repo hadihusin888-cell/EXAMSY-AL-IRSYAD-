@@ -158,15 +158,40 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 }
 
 /**
- * Firebase Configuration.
- * GANTI nilai di bawah ini dengan data dari Firebase Console proyek baru Anda.
+ * Firebase Configuration with Dynamic LocalStorage Override
  */
-import firebaseConfig from "../firebase-applet-config.json";
+import defaultFirebaseConfig from "../firebase-applet-config.json";
+
+// Default config backup for examsy-new
+export const ORIGINAL_CONFIG = {
+  "apiKey": "AIzaSyDElvo7LyKskNywwEW9UkatwY9AKZV6oZ0",
+  "authDomain": "examsy-new.firebaseapp.com",
+  "projectId": "examsy-new",
+  "storageBucket": "examsy-new.firebasestorage.app",
+  "messagingSenderId": "686360019218",
+  "appId": "1:686360019218:web:b907f8aea0fe34d2ac73cb"
+};
+
+let activeConfig = defaultFirebaseConfig;
+
+if (typeof window !== "undefined") {
+  const overrideStr = localStorage.getItem("examsy_firebase_config_override");
+  if (overrideStr) {
+    try {
+      activeConfig = JSON.parse(overrideStr);
+      console.log("Using active Firebase config override for project:", activeConfig.projectId);
+    } catch (e) {
+      console.error("Failed to parse firebase config override from localStorage:", e);
+    }
+  }
+}
+
+export const getActiveFirebaseConfig = () => activeConfig;
 
 // Initialize Firebase App
-const app = initializeApp(firebaseConfig);
-const db = (firebaseConfig as any).firestoreDatabaseId
-  ? getFirestore(app, (firebaseConfig as any).firestoreDatabaseId)
+const app = initializeApp(activeConfig);
+const db = (activeConfig as any).firestoreDatabaseId
+  ? getFirestore(app, (activeConfig as any).firestoreDatabaseId)
   : getFirestore(app);
 
 // Enable Offline Persistence untuk fitur semi-online
