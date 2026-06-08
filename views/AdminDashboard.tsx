@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { ExamSession, Student, StudentStatus, Room, Question } from '../types';
 import { getQuotaStats } from '../services/firebaseService';
 
@@ -272,7 +272,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <nav className="flex bg-slate-100 p-1 rounded-xl md:rounded-2xl overflow-x-auto max-w-xs sm:max-w-md md:max-w-lg lg:max-w-none">
             {(['SESSIONS', 'STUDENTS', 'ROOMS', 'QUOTA'] as const).map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)} className={`px-2.5 md:px-5 py-1.5 md:py-2 rounded-lg md:rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
-                {tab === 'SESSIONS' ? 'Ujian' : tab === 'STUDENTS' ? 'Siswa' : tab === 'ROOMS' ? 'Ruang' : 'Cek Kuota'}
+                {tab === 'SESSIONS' ? 'Ujian' : tab === 'STUDENTS' ? 'Siswa' : tab === 'ROOMS' ? 'Ruang' : 'DBMS & Kuota'}
               </button>
             ))}
           </nav>
@@ -569,6 +569,49 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {activeTab === 'QUOTA' && (
            <div className="max-w-7xl mx-auto space-y-10 pb-20">
+              {/* PANEL FIREBASE FLUID CONFIGURATION */}
+              <div className="bg-white p-8 md:p-10 rounded-[3rem] border border-slate-200 shadow-sm space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-6">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                      <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Database Engine Utama: Google Firebase</h3>
+                    </div>
+                    <p className="text-slate-400 text-xs font-semibold mt-1">
+                      Aplikasi terhubung langsung ke Google Cloud Firestore untuk sinkronisasi real-time instan dan andal.
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="px-4 py-2 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-2xl text-[10px] font-black tracking-wider uppercase flex items-center gap-1.5 shadow-sm">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Firestore Real-time AKTIF
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
+                  <h4 className="text-xs font-black uppercase text-slate-600 tracking-wider">Koneksi Database Aktif</h4>
+                  
+                  <div className="space-y-2.5 text-xs font-bold text-slate-500">
+                    <div className="flex justify-between border-b border-slate-100 pb-2">
+                      <span>Metode Sinkronisasi</span>
+                      <span className="text-emerald-500 uppercase font-black">Direct Client-to-Firebase SDK</span>
+                    </div>
+                    
+                    <div className="flex justify-between border-b border-slate-100 pb-2">
+                      <span>Engine Aktif</span>
+                      <span className="text-slate-800 font-black">Cloud Firestore</span>
+                    </div>
+
+                    <div className="flex justify-between border-b border-slate-100 pb-2">
+                      <span>Skema Real-time</span>
+                      <span className="text-indigo-600 font-extrabold font-mono">onSnapshot (Direct Listeners)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                 <div>
                   <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter uppercase leading-none">Cek Kuota Firebase</h2>

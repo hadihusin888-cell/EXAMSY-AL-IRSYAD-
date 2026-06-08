@@ -3,15 +3,15 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { ViewState, Student, ExamSession, StudentStatus, Room } from './types';
 import { 
   syncData, 
-  dbAction, 
-  getActiveFirebaseConfig, 
-  ORIGINAL_CONFIG,
-  getRoomsOnce,
-  getSessionsOnce,
+  getRoomsOnce, 
+  getSessionsOnce, 
+  syncSingleStudent, 
+  syncSingleSession, 
+  syncRoomStudents, 
+  dbAction,
   getStudentOnce,
-  syncSingleStudent,
-  syncSingleSession,
-  syncRoomStudents
+  getActiveFirebaseConfig, 
+  ORIGINAL_CONFIG 
 } from './services/firebaseService';
 
 const StudentLogin = lazy(() => import('./views/StudentLogin'));
@@ -143,18 +143,17 @@ const App: React.FC = () => {
   useEffect(() => {
     const initFastLoad = async () => {
       try {
-        const [loadedSessions, loadedRooms] = await Promise.all([
-          getSessionsOnce(),
-          getRoomsOnce()
+        const [loadedRooms, loadedSessions] = await Promise.all([
+          getRoomsOnce(),
+          getSessionsOnce()
         ]);
-        setSessions(loadedSessions);
-        setRooms(loadedRooms);
+        setRooms(loadedRooms || []);
+        setSessions(loadedSessions || []);
         setIsLoading(false);
         setIsSyncing(false);
         setSyncError(null);
       } catch (err) {
         console.error("Initial fast load failed:", err);
-        // Fallback: don't loop forever
         setIsLoading(false);
       }
     };
