@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { ExamSession, Student, StudentStatus } from '../types';
-import { getStudentOnce } from '../services/firebaseService';
 
 interface StudentLoginProps {
   sessions: ExamSession[];
@@ -40,75 +39,74 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ sessions, students, onLogin
     }
   }, []);
 
-  const [isLocalProcessing, setIsLocalProcessing] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isProcessing || isLocalProcessing) return;
+    if (isProcessing) return;
     setError('');
-    setIsLocalProcessing(true);
 
-    try {
-      const inputNis = String(formData.nis).trim();
-      const inputPass = String(formData.password).trim();
-      const inputClass = String(formData.studentClass).trim();
-      const inputPin = String(formData.pin).trim().toUpperCase();
+    const inputNis = String(formData.nis).trim();
+    const inputPass = String(formData.password).trim();
+    const inputClass = String(formData.studentClass).trim();
+    const inputPin = String(formData.pin).trim().toUpperCase();
 
-      // 1. Cari Siswa berdasarkan NIS & Password via on-demand target fetch (Zero scanning)
-      const student = await getStudentOnce(inputNis);
-      
-      if (!student || String(student.password || '').trim() !== inputPass) {
-        setError('NIS atau Password Anda tidak terdaftar.');
-        setIsLocalProcessing(false);
-        return;
-      }
-
-      // Simpan kredensial jika "Ingat Saya" dicentang
-      if (rememberMe) {
-        localStorage.setItem('examsy_student_nis', inputNis);
-        localStorage.setItem('examsy_student_pass', inputPass);
-        localStorage.setItem('examsy_student_class', inputClass);
-      } else {
-        localStorage.removeItem('examsy_student_nis');
-        localStorage.removeItem('examsy_student_pass');
-        localStorage.removeItem('examsy_student_class');
-      }
-
-      // 2. Cek Status Akun
-      if (student.status === StudentStatus.BLOKIR) {
-        setError('Akses ditolak. Akun Anda dalam status BLOKIR.');
-        setIsLocalProcessing(false);
-        return;
-      }
-
-      // 3. Sinkronisasi Data Kelas Siswa
-      if (String(student.class).trim() !== inputClass) {
-        setError(`Sinkronisasi Gagal: Anda terdaftar di Kelas ${student.class}, bukan Kelas ${inputClass}.`);
-        setIsLocalProcessing(false);
-        return;
-      }
-
-      // 4. Cari Sesi Aktif berdasarkan PIN dan Kelas
-      const session = sessions.find(s => 
-        String(s.pin || '').trim().toUpperCase() === inputPin && 
-        String(s.class || '').trim() === inputClass &&
-        s.isActive
-      );
-      
-      if (!session) {
-        setError('PIN Sesi tidak aktif, salah, atau tidak sesuai dengan kelas Anda.');
-        setIsLocalProcessing(false);
-        return;
-      }
-
-      // Jika semua valid, lanjut ke Ruang Ujian
-      onLogin(student, session);
-    } catch (err) {
-      console.error("Login verification failed:", err);
-      setError('Gagal memverifikasi login. Silakan cek koneksi internet Anda.');
-    } finally {
-      setIsLocalProcessing(false);
+    // 1. Cari Siswa berdasarkan NIS & Password
+    const student = students.find(s => 
+      String(s.nis).trim() === inputNis && 
+      String(s.password || '').trim() === inputPass
+    );
+    
+    if (!student) {
+      setError('NIS atau Password Anda tidak terdaftar.');
+      return;
     }
+
+    // Simpan kredensial jika "Ingat Saya" dicentang
+    if (rememberMe) {
+      localStorage.setItem('examsy_student_nis', inputNis);
+      localStorage.setItem('examsy_student_pass', inputPass);
+      localStorage.setItem('examsy_student_class', inputClass);
+    } else {
+      localStorage.removeItem('examsy_student_nis');
+      localStorage.removeItem('examsy_student_pass');
+      localStorage.removeItem('examsy_student_class');
+    }
+
+    // 2. Cek Status Akun
+    if (student.status === StudentStatus.BLOKIR) {
+      setError('Akses ditolak. Akun Anda dalam status BLOKIR.');
+      return;
+    }
+
+    if (student.status === StudentStatus.SELESAI) {
+      setError('Anda telah menyelesaikan sesi ujian ini.');
+      return;
+    }
+
+    // 3. Sinkronisasi Data Kelas Siswa
+    if (String(student.class).trim() !== inputClass) {
+      setError(`Sinkronisasi Gagal: Anda terdaftar di Kelas ${student.class}, bukan Kelas ${inputClass}.`);
+      return;
+    }
+
+    // 4. Cari Sesi Aktif berdasarkan PIN
+    const session = sessions.find(s => 
+      String(s.pin || '').trim().toUpperCase() === inputPin && 
+      s.isActive
+    );
+    
+    if (!session) {
+      setError('PIN Sesi tidak aktif atau tidak ditemukan.');
+      return;
+    }
+
+    // 5. Sinkronisasi Data Kelas Sesi
+    if (String(session.class).trim() !== inputClass) {
+      setError(`Sesi ${session.name} hanya untuk Kelas ${session.class}. Silakan pilih kelas yang sesuai.`);
+      return;
+    }
+
+    // Jika semua valid, lanjut ke Ruang Ujian
+    onLogin(student, session);
   };
 
   return (
@@ -252,20 +250,8 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ sessions, students, onLogin
         </form>
       </div>
 
-      <footer className="mt-8 text-slate-400 text-[9px] font-black uppercase tracking-widest text-center flex flex-col items-center gap-2">
-        <div>&copy; 2026 HUMAS SMP AL IRSYAD SURAKARTA</div>
-        <button 
-          type="button"
-          onClick={() => {
-            if (window.confirm("Apakah Anda ingin membersihkan cache lokal dan memuat ulang database? Tindakan ini akan menghapus data tersimpan dan memaksa sinkronisasi ulang dengan server.")) {
-              localStorage.clear();
-              window.location.reload();
-            }
-          }}
-          className="mt-1 px-3 py-1 text-[8px] font-black tracking-widest text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200/60 rounded-full transition-all uppercase cursor-pointer"
-        >
-          🧹 Bersihkan Cache & Reset Koneksi
-        </button>
+      <footer className="mt-8 text-slate-400 text-[9px] font-black uppercase tracking-widest text-center">
+        &copy; 2026 HUMAS SMP AL IRSYAD SURAKARTA
       </footer>
     </div>
   );

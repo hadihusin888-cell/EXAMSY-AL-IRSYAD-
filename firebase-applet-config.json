@@ -1,8 +1,10 @@
 {
-  "apiKey": "AIzaSyAQWYus2RqF8bkljqQLJMupX4qX58OF1FE",
-  "authDomain": "examsy-alirsyadnew.firebaseapp.com",
-  "projectId": "examsy-alirsyadnew",
-  "storageBucket": "examsy-alirsyadnew.firebasestorage.app",
-  "messagingSenderId": "83334039235",
-  "appId": "1:83334039235:web:c4300457593acc2336c476"
+  "projectId": "portal-informatika",
+  "appId": "1:542812253576:web:497a22a9ac6f4eca445e3d",
+  "apiKey": "AIzaSyBSjn7FsUDvBd1_ZraxjjWydfbvIuHcAew",
+  "authDomain": "portal-informatika.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-92db1e8d-d270-4e51-b4f1-efdc8c346eb3",
+  "storageBucket": "portal-informatika.firebasestorage.app",
+  "messagingSenderId": "542812253576",
+  "measurementId": ""
 }
