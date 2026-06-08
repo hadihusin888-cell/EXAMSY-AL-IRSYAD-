@@ -10,7 +10,11 @@ import {
   deleteDoc, 
   onSnapshot,
   writeBatch,
-  enableIndexedDbPersistence
+  enableIndexedDbPersistence,
+  getDoc,
+  getDocs,
+  query,
+  where
 } from "firebase/firestore";
 import { Student, ExamSession, Room } from "../types";
 
@@ -207,6 +211,7 @@ if (typeof window !== 'undefined') {
 
 /**
  * Real-time data synchronization with Firestore.
+ * Standard full-scan synchronization, reserved ONLY for the Admin Dashboard or when full lists are needed.
  */
 export const syncData = (
   onStudentsUpdate: (data: Student[]) => void,
@@ -276,6 +281,126 @@ export const syncData = (
     unsubSessions();
     unsubRooms();
   };
+};
+
+/**
+ * One-time document fetch helper for a specific student.
+ * Uses exactly 1 read operation. Fantastic for login page verification.
+ */
+export const getStudentOnce = async (nis: string): Promise<Student | null> => {
+  try {
+    const sDoc = await getDoc(doc(db, "students", String(nis)));
+    if (!sDoc.exists()) return null;
+    incrementQuotaMetric("reads", 1);
+    return sDoc.data() as Student;
+  } catch (err) {
+    console.error("Error getting student once:", err);
+    return null;
+  }
+};
+
+/**
+ * One-time fetch of all rooms in the database.
+ * Extremely efficient for Proctor/Admin login dropdown generation.
+ */
+export const getRoomsOnce = async (): Promise<Room[]> => {
+  try {
+    const qSnap = await getDocs(collection(db, "rooms"));
+    incrementQuotaMetric("reads", qSnap.docs.length);
+    return qSnap.docs.map(d => d.data() as Room);
+  } catch (err) {
+    console.error("Error getting rooms once:", err);
+    return [];
+  }
+};
+
+/**
+ * One-time fetch of all active/inactive exam sessions.
+ */
+export const getSessionsOnce = async (): Promise<ExamSession[]> => {
+  try {
+    const qSnap = await getDocs(collection(db, "sessions"));
+    incrementQuotaMetric("reads", qSnap.docs.length);
+    return qSnap.docs.map(d => d.data() as ExamSession);
+  } catch (err) {
+    console.error("Error getting sessions once:", err);
+    return [];
+  }
+};
+
+/**
+ * Scoped listener to watch changes ONLY for a single student document.
+ * Consumes exactly 1 read on initial load + 1 read per subsequent change targeting this student.
+ * Extremely secure and resource-friendly!
+ */
+export const syncSingleStudent = (
+  nis: string,
+  onUpdate: (student: Student | null) => void,
+  onError?: (error: any) => void
+) => {
+  return onSnapshot(
+    doc(db, "students", String(nis)),
+    (sDoc) => {
+      if (!sDoc.metadata.fromCache) {
+        incrementQuotaMetric("reads", 1);
+      }
+      onUpdate(sDoc.exists() ? (sDoc.data() as Student) : null);
+    },
+    (error) => {
+      console.error("syncSingleStudent error:", error);
+      if (onError) onError(error);
+    }
+  );
+};
+
+/**
+ * Scoped listener to watch changes ONLY for a single session document.
+ * Used by active students in the exam room to track session status (isActive/PIN changes).
+ */
+export const syncSingleSession = (
+  sessionId: string,
+  onUpdate: (session: ExamSession | null) => void,
+  onError?: (error: any) => void
+) => {
+  return onSnapshot(
+    doc(db, "sessions", String(sessionId)),
+    (sDoc) => {
+      if (!sDoc.metadata.fromCache) {
+        incrementQuotaMetric("reads", 1);
+      }
+      onUpdate(sDoc.exists() ? (sDoc.data() as ExamSession) : null);
+    },
+    (error) => {
+      console.error("syncSingleSession error:", error);
+      if (onError) onError(error);
+    }
+  );
+};
+
+/**
+ * Scoped listener to watch changes ONLY to students belonging to a specific Proctor Room.
+ * Queries other students are bypassed, saving tremendous read quota.
+ */
+export const syncRoomStudents = (
+  roomId: string,
+  onUpdate: (students: Student[]) => void,
+  onError?: (error: any) => void
+) => {
+  const q = query(collection(db, "students"), where("roomId", "==", String(roomId)));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      if (!snapshot.metadata.fromCache) {
+        incrementQuotaMetric("reads", snapshot.docChanges().length || 1);
+      }
+      const data = snapshot.docs.map(d => d.data() as Student);
+      onUpdate(data);
+    },
+    (error) => {
+      console.error("syncRoomStudents error:", error);
+      if (onError) onError(error);
+    }
+  );
 };
 
 /**

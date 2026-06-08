@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ExamSession, Student, StudentStatus } from '../types';
+import { getStudentOnce } from '../services/firebaseService';
 
 interface StudentLoginProps {
   sessions: ExamSession[];
@@ -39,64 +40,75 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ sessions, students, onLogin
     }
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isLocalProcessing, setIsLocalProcessing] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isProcessing) return;
+    if (isProcessing || isLocalProcessing) return;
     setError('');
+    setIsLocalProcessing(true);
 
-    const inputNis = String(formData.nis).trim();
-    const inputPass = String(formData.password).trim();
-    const inputClass = String(formData.studentClass).trim();
-    const inputPin = String(formData.pin).trim().toUpperCase();
+    try {
+      const inputNis = String(formData.nis).trim();
+      const inputPass = String(formData.password).trim();
+      const inputClass = String(formData.studentClass).trim();
+      const inputPin = String(formData.pin).trim().toUpperCase();
 
-    // 1. Cari Siswa berdasarkan NIS & Password
-    const student = students.find(s => 
-      String(s.nis).trim() === inputNis && 
-      String(s.password || '').trim() === inputPass
-    );
-    
-    if (!student) {
-      setError('NIS atau Password Anda tidak terdaftar.');
-      return;
+      // 1. Cari Siswa berdasarkan NIS & Password via on-demand target fetch (Zero scanning)
+      const student = await getStudentOnce(inputNis);
+      
+      if (!student || String(student.password || '').trim() !== inputPass) {
+        setError('NIS atau Password Anda tidak terdaftar.');
+        setIsLocalProcessing(false);
+        return;
+      }
+
+      // Simpan kredensial jika "Ingat Saya" dicentang
+      if (rememberMe) {
+        localStorage.setItem('examsy_student_nis', inputNis);
+        localStorage.setItem('examsy_student_pass', inputPass);
+        localStorage.setItem('examsy_student_class', inputClass);
+      } else {
+        localStorage.removeItem('examsy_student_nis');
+        localStorage.removeItem('examsy_student_pass');
+        localStorage.removeItem('examsy_student_class');
+      }
+
+      // 2. Cek Status Akun
+      if (student.status === StudentStatus.BLOKIR) {
+        setError('Akses ditolak. Akun Anda dalam status BLOKIR.');
+        setIsLocalProcessing(false);
+        return;
+      }
+
+      // 3. Sinkronisasi Data Kelas Siswa
+      if (String(student.class).trim() !== inputClass) {
+        setError(`Sinkronisasi Gagal: Anda terdaftar di Kelas ${student.class}, bukan Kelas ${inputClass}.`);
+        setIsLocalProcessing(false);
+        return;
+      }
+
+      // 4. Cari Sesi Aktif berdasarkan PIN dan Kelas
+      const session = sessions.find(s => 
+        String(s.pin || '').trim().toUpperCase() === inputPin && 
+        String(s.class || '').trim() === inputClass &&
+        s.isActive
+      );
+      
+      if (!session) {
+        setError('PIN Sesi tidak aktif, salah, atau tidak sesuai dengan kelas Anda.');
+        setIsLocalProcessing(false);
+        return;
+      }
+
+      // Jika semua valid, lanjut ke Ruang Ujian
+      onLogin(student, session);
+    } catch (err) {
+      console.error("Login verification failed:", err);
+      setError('Gagal memverifikasi login. Silakan cek koneksi internet Anda.');
+    } finally {
+      setIsLocalProcessing(false);
     }
-
-    // Simpan kredensial jika "Ingat Saya" dicentang
-    if (rememberMe) {
-      localStorage.setItem('examsy_student_nis', inputNis);
-      localStorage.setItem('examsy_student_pass', inputPass);
-      localStorage.setItem('examsy_student_class', inputClass);
-    } else {
-      localStorage.removeItem('examsy_student_nis');
-      localStorage.removeItem('examsy_student_pass');
-      localStorage.removeItem('examsy_student_class');
-    }
-
-    // 2. Cek Status Akun
-    if (student.status === StudentStatus.BLOKIR) {
-      setError('Akses ditolak. Akun Anda dalam status BLOKIR.');
-      return;
-    }
-
-    // 3. Sinkronisasi Data Kelas Siswa
-    if (String(student.class).trim() !== inputClass) {
-      setError(`Sinkronisasi Gagal: Anda terdaftar di Kelas ${student.class}, bukan Kelas ${inputClass}.`);
-      return;
-    }
-
-    // 4. Cari Sesi Aktif berdasarkan PIN dan Kelas
-    const session = sessions.find(s => 
-      String(s.pin || '').trim().toUpperCase() === inputPin && 
-      String(s.class || '').trim() === inputClass &&
-      s.isActive
-    );
-    
-    if (!session) {
-      setError('PIN Sesi tidak aktif, salah, atau tidak sesuai dengan kelas Anda.');
-      return;
-    }
-
-    // Jika semua valid, lanjut ke Ruang Ujian
-    onLogin(student, session);
   };
 
   return (

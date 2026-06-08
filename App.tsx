@@ -1,7 +1,18 @@
 
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { ViewState, Student, ExamSession, StudentStatus, Room } from './types';
-import { syncData, dbAction, getActiveFirebaseConfig, ORIGINAL_CONFIG } from './services/firebaseService';
+import { 
+  syncData, 
+  dbAction, 
+  getActiveFirebaseConfig, 
+  ORIGINAL_CONFIG,
+  getRoomsOnce,
+  getSessionsOnce,
+  getStudentOnce,
+  syncSingleStudent,
+  syncSingleSession,
+  syncRoomStudents
+} from './services/firebaseService';
 
 const StudentLogin = lazy(() => import('./views/StudentLogin'));
 const AdminLogin = lazy(() => import('./views/AdminLogin'));
@@ -128,68 +139,163 @@ const App: React.FC = () => {
     }
   };
 
-  // Effect untuk mengecek session yang tersimpan di localStorage
+  // 1. Initial fast load of non-real-time collections (rooms & sessions)
   useEffect(() => {
+    const initFastLoad = async () => {
+      try {
+        const [loadedSessions, loadedRooms] = await Promise.all([
+          getSessionsOnce(),
+          getRoomsOnce()
+        ]);
+        setSessions(loadedSessions);
+        setRooms(loadedRooms);
+        setIsLoading(false);
+        setIsSyncing(false);
+        setSyncError(null);
+      } catch (err) {
+        console.error("Initial fast load failed:", err);
+        // Fallback: don't loop forever
+        setIsLoading(false);
+      }
+    };
+    
+    // Check if there is a saved admin user so we bypass login quickly
     const savedAuth = localStorage.getItem('examsy_auth');
     if (savedAuth) {
       try {
         const auth = JSON.parse(savedAuth);
         if (auth.role === 'ADMIN') {
           setView('ADMIN_DASHBOARD');
-        } else if (auth.role === 'STUDENT' && auth.nis && auth.sessionId) {
-          // Placeholder: Kita akan set view ke EXAM_ROOM setelah data terisi
         }
-      } catch (e) {
-        console.error("Error parsing saved auth", e);
-      }
+      } catch (e) {}
     }
+    
+    initFastLoad();
   }, []);
 
+  // 2. Main dynamic subscription coordinator (Role/View-based selective syncing)
   useEffect(() => {
-    // Sinkronisasi data real-time dari Firestore
-    const unsub = syncData(
-      (studentData) => {
-        setStudents(studentData);
-        setIsLoading(false);
-        setIsSyncing(false);
-        setSyncError(null);
-      },
-      (sessionData) => {
-        setSessions(sessionData);
-      },
-      (roomData) => {
-        setRooms(roomData);
-        
-        // Cek jika ada session proktor yang tersimpan
-        const savedAuth = localStorage.getItem('examsy_auth');
-        if (savedAuth) {
-          try {
-            const auth = JSON.parse(savedAuth);
-            if (auth.role === 'PROCTOR' && auth.roomId) {
-              const room = roomData.find(r => r.id === auth.roomId);
-              if (room) {
-                setActiveRoom(room);
-                setView('PROCTOR_DASHBOARD');
-              }
-            }
-          } catch (e) {}
+    if (isLoading) return;
+
+    let unsubAll: (() => void) | null = null;
+    let unsubRoomStudents: (() => void) | null = null;
+    let unsubSingleStudent: (() => void) | null = null;
+    let unsubSingleSession: (() => void) | null = null;
+
+    if (view === 'ADMIN_DASHBOARD') {
+      console.log("[Firebase] Activating Global DB Watcher for Admin Dashboard");
+      setIsSyncing(true);
+      unsubAll = syncData(
+        (allStudents) => {
+          setStudents(allStudents);
+          setIsSyncing(false);
+          setSyncError(null);
+        },
+        (allSessions) => {
+          setSessions(allSessions);
+        },
+        (allRooms) => {
+          setRooms(allRooms);
+        },
+        (err) => {
+          console.error("Admin real-time sync failed:", err);
+          setSyncError(err);
+          setIsSyncing(false);
         }
-      },
-      (error) => {
-        console.error("Critical Firebase Connection Error:", error);
-        setSyncError(error);
-        setIsLoading(false);
-        setIsSyncing(false);
-      }
-    );
+      );
+    } 
+    else if (view === 'PROCTOR_DASHBOARD' && activeRoom) {
+      console.log(`[Firebase] Activating Scoped Student Watcher for Proctor Room: ${activeRoom.name}`);
+      setIsSyncing(true);
+      
+      // Perform fast load of latest configurations once
+      getRoomsOnce().then(setRooms);
+      getSessionsOnce().then(setSessions);
 
-    return () => unsub();
-  }, []);
+      // Listen ONLY to students belonging to this active proctor's room (drastically cuts read quota)
+      unsubRoomStudents = syncRoomStudents(
+        activeRoom.id,
+        (roomStudents) => {
+          setStudents(roomStudents);
+          setIsSyncing(false);
+          setSyncError(null);
+        },
+        (err) => {
+          console.error("Proctor students sync failed:", err);
+          setSyncError(err);
+          setIsSyncing(false);
+        }
+      );
+    } 
+    else if (view === 'EXAM_ROOM' && currentUser && currentSession) {
+      console.log(`[Firebase] Activating targeted Student [${currentUser.nis}] & Session [${currentSession.id}] Watchers`);
+      setIsSyncing(true);
 
-  // Centralized effect to manage and validate student sessions in real-time
+      // Listen ONLY to this specific student's document 
+      unsubSingleStudent = syncSingleStudent(
+        currentUser.nis,
+        (updatedStudent) => {
+          if (updatedStudent) {
+            setStudents(prev => {
+              const cleaned = prev.filter(s => String(s.nis) !== String(updatedStudent.nis));
+              return [...cleaned, updatedStudent];
+            });
+            setCurrentUser(updatedStudent);
+          }
+          setIsSyncing(false);
+        },
+        (err) => console.error("Single student sync failed:", err)
+      );
+
+      // Listen ONLY to this specific sessions's document
+      unsubSingleSession = syncSingleSession(
+        currentSession.id,
+        (updatedSession) => {
+          if (updatedSession) {
+            setSessions(prev => {
+              const cleaned = prev.filter(s => s.id !== updatedSession.id);
+              return [...cleaned, updatedSession];
+            });
+            setCurrentSession(updatedSession);
+          }
+        },
+        (err) => console.error("Single session sync failed:", err)
+      );
+    } 
+    else {
+      // For inactive/login dashboards, pull updates of active sessions every 30 seconds
+      // to avoid keeps an open gRPC channel when devices are idle
+      console.log("[Firebase] Entering passive sleep mode - zero active live streams");
+      
+      const passiveFetch = () => {
+        getSessionsOnce().then(loaded => {
+          if (loaded?.length) setSessions(loaded);
+        });
+        getRoomsOnce().then(loaded => {
+          if (loaded?.length) setRooms(loaded);
+        });
+      };
+      
+      passiveFetch();
+      const intervalId = setInterval(passiveFetch, 30000);
+
+      return () => {
+        clearInterval(intervalId);
+      };
+    }
+
+    return () => {
+      if (unsubAll) unsubAll();
+      if (unsubRoomStudents) unsubRoomStudents();
+      if (unsubSingleStudent) unsubSingleStudent();
+      if (unsubSingleSession) unsubSingleSession();
+    };
+  }, [view, activeRoom?.id, currentUser?.nis, currentSession?.id, isLoading]);
+
+  // 3. Centralized effect to manage and validate student sessions in real-time
   useEffect(() => {
-    // Only proceed if loading has finished and we have synced data
-    if (isLoading || students.length === 0 || sessions.length === 0) return;
+    // Only proceed if loading has finished
+    if (isLoading) return;
 
     const savedAuth = localStorage.getItem('examsy_auth');
     if (!savedAuth) {
@@ -208,22 +314,20 @@ const App: React.FC = () => {
         return; // This effect only governs student roles
       }
 
-      const student = students.find(s => String(s.nis).trim() === String(auth.nis).trim());
-      const session = sessions.find(s => s.id === auth.sessionId);
+      // Read student & session states from either active single listeners or states
+      const student = currentUser && String(currentUser.nis) === String(auth.nis) 
+        ? currentUser 
+        : students.find(s => String(s.nis).trim() === String(auth.nis).trim());
+
+      const session = currentSession && currentSession.id === auth.sessionId 
+        ? currentSession 
+        : sessions.find(s => s.id === auth.sessionId);
 
       if (student && session) {
         // Validate class and active status of the student's exam session
         const isSessionValid = session.isActive && String(session.class).trim() === String(student.class).trim();
 
         if (isSessionValid) {
-          // Keep local state perfectly synchronized with database updates
-          if (!currentUser || currentUser.nis !== student.nis || currentUser.status !== student.status || currentUser.violations !== student.violations) {
-            setCurrentUser(student);
-          }
-          if (!currentSession || currentSession.id !== session.id || JSON.stringify(currentSession) !== JSON.stringify(session)) {
-            setCurrentSession(session);
-          }
-
           if (view === 'STUDENT_LOGIN') {
             setView('EXAM_ROOM');
             if (student.status !== StudentStatus.SEDANG_UJIAN) {
@@ -250,7 +354,7 @@ const App: React.FC = () => {
             });
           }
         }
-      } else if (students.length > 0 && sessions.length > 0) {
+      } else if (view === 'EXAM_ROOM' && students.length > 0 && sessions.length > 0) {
         // Student or Session no longer exists in the database
         console.log("Student or Session not found in database. Resetting session.");
         localStorage.removeItem('examsy_auth');
