@@ -563,6 +563,8 @@ service cloud.firestore {
             session={currentSession} 
             onAction={handleAction}
             onFinish={async () => { 
+              // Hapus sesi login dari localStorage agar tidak terkena efek sinkronisasi otomatis
+              localStorage.removeItem('examsy_auth');
               // Perbaikan: Ubah status menjadi SELESAI di Firestore sebelum navigasi
               if (currentUser) {
                 await handleAction('UPDATE_STUDENT', {
