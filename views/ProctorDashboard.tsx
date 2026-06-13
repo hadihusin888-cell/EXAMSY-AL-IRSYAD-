@@ -9,10 +9,11 @@ interface ProctorDashboardProps {
   isProcessing?: boolean;
   onLogout: () => void;
   onAction: (action: string, payload: any) => Promise<boolean>;
+  onRefresh?: () => void;
 }
 
 const ProctorDashboard: React.FC<ProctorDashboardProps> = ({ 
-  room, students, isSyncing: globalSyncing, isProcessing = false, onLogout, onAction 
+  room, students, isSyncing: globalSyncing, isProcessing = false, onLogout, onAction, onRefresh 
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -71,6 +72,18 @@ const ProctorDashboard: React.FC<ProctorDashboardProps> = ({
            </div>
         </div>
         <div className="flex items-center gap-3 md:gap-6 shrink-0">
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              disabled={globalSyncing || isProcessing}
+              className="flex items-center justify-center p-2 rounded-xl bg-indigo-900/40 hover:bg-indigo-900/80 border border-indigo-800/40 hover:border-indigo-700/60 text-indigo-200 hover:text-white transition-all disabled:opacity-50"
+              title="Refresh Data"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${globalSyncing ? 'animate-spin text-white' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17" />
+              </svg>
+            </button>
+          )}
           {(globalSyncing || isProcessing) && <div className="w-3.5 h-3.5 md:w-4 md:h-4 border-2 border-indigo-400/30 border-t-white rounded-full animate-spin"></div>}
           <button onClick={onLogout} className="text-indigo-200 hover:text-white font-black text-[10px] md:text-sm uppercase tracking-widest transition-colors">Keluar</button>
         </div>

@@ -26,10 +26,11 @@ interface AdminDashboardProps {
   isProcessing?: boolean;
   onLogout: () => void;
   onAction: (action: string, payload: any) => Promise<boolean>;
+  onRefresh?: () => void;
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
-  sessions, students, rooms, isSyncing, isProcessing = false, onLogout, onAction 
+  sessions, students, rooms, isSyncing, isProcessing = false, onLogout, onAction, onRefresh 
 }) => {
   const [activeTab, setActiveTab] = useState<'SESSIONS' | 'STUDENTS' | 'ROOMS'>('SESSIONS');
   
@@ -277,6 +278,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </nav>
         </div>
         <div className="flex items-center gap-3 md:gap-6">
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              disabled={isSyncing}
+              className="flex items-center justify-center p-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-100 hover:border-indigo-100 text-slate-500 hover:text-indigo-600 transition-all disabled:opacity-50"
+              title="Refresh Data"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-4.5 w-4.5 ${isSyncing ? 'animate-spin text-indigo-500' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17" />
+              </svg>
+            </button>
+          )}
           <div className="flex items-center gap-2 md:gap-3 bg-slate-50 px-3 md:px-4 py-2 rounded-xl md:rounded-2xl border border-slate-100">
              <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${isSyncing ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`}></div>
              <span className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">{isSyncing ? 'Sinkronisasi...' : 'Terhubung Cloud'}</span>

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ExamSession, Student, StudentStatus } from '../types';
 
+import { validateStudentLogin } from '../services/firebaseService';
+
 interface StudentLoginProps {
   sessions: ExamSession[];
   students: Student[];
@@ -21,6 +23,7 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ sessions, students, onLogin
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
 
   // Load saved credentials on mount
   React.useEffect(() => {
@@ -39,74 +42,44 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ sessions, students, onLogin
     }
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isProcessing) return;
+    if (isProcessing || isVerifying) return;
     setError('');
+    setIsVerifying(true);
 
     const inputNis = String(formData.nis).trim();
     const inputPass = String(formData.password).trim();
     const inputClass = String(formData.studentClass).trim();
     const inputPin = String(formData.pin).trim().toUpperCase();
 
-    // 1. Cari Siswa berdasarkan NIS & Password
-    const student = students.find(s => 
-      String(s.nis).trim() === inputNis && 
-      String(s.password || '').trim() === inputPass
-    );
-    
-    if (!student) {
-      setError('NIS atau Password Anda tidak terdaftar.');
-      return;
-    }
+    try {
+      const result = await validateStudentLogin(inputNis, inputPass, inputClass, inputPin);
+      
+      if (!result.success) {
+        setError(result.error || 'Autentikasi gagal.');
+        setIsVerifying(false);
+        return;
+      }
 
-    // Simpan kredensial jika "Ingat Saya" dicentang
-    if (rememberMe) {
-      localStorage.setItem('examsy_student_nis', inputNis);
-      localStorage.setItem('examsy_student_pass', inputPass);
-      localStorage.setItem('examsy_student_class', inputClass);
-    } else {
-      localStorage.removeItem('examsy_student_nis');
-      localStorage.removeItem('examsy_student_pass');
-      localStorage.removeItem('examsy_student_class');
-    }
+      // Simpan kredensial jika "Ingat Saya" dicentang
+      if (rememberMe) {
+        localStorage.setItem('examsy_student_nis', inputNis);
+        localStorage.setItem('examsy_student_pass', inputPass);
+        localStorage.setItem('examsy_student_class', inputClass);
+      } else {
+        localStorage.removeItem('examsy_student_nis');
+        localStorage.removeItem('examsy_student_pass');
+        localStorage.removeItem('examsy_student_class');
+      }
 
-    // 2. Cek Status Akun
-    if (student.status === StudentStatus.BLOKIR) {
-      setError('Akses ditolak. Akun Anda dalam status BLOKIR.');
-      return;
+      // Jika semua valid, lanjut ke Ruang Ujian
+      onLogin(result.student!, result.session!);
+    } catch (err: any) {
+      setError('Terjadi kendala saat verifikasi. Coba lagi.');
+    } finally {
+      setIsVerifying(false);
     }
-
-    if (student.status === StudentStatus.SELESAI) {
-      setError('Anda telah menyelesaikan sesi ujian ini.');
-      return;
-    }
-
-    // 3. Sinkronisasi Data Kelas Siswa
-    if (String(student.class).trim() !== inputClass) {
-      setError(`Sinkronisasi Gagal: Anda terdaftar di Kelas ${student.class}, bukan Kelas ${inputClass}.`);
-      return;
-    }
-
-    // 4. Cari Sesi Aktif berdasarkan PIN
-    const session = sessions.find(s => 
-      String(s.pin || '').trim().toUpperCase() === inputPin && 
-      s.isActive
-    );
-    
-    if (!session) {
-      setError('PIN Sesi tidak aktif atau tidak ditemukan.');
-      return;
-    }
-
-    // 5. Sinkronisasi Data Kelas Sesi
-    if (String(session.class).trim() !== inputClass) {
-      setError(`Sesi ${session.name} hanya untuk Kelas ${session.class}. Silakan pilih kelas yang sesuai.`);
-      return;
-    }
-
-    // Jika semua valid, lanjut ke Ruang Ujian
-    onLogin(student, session);
   };
 
   return (
@@ -239,13 +212,13 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ sessions, students, onLogin
 
           <button
             type="submit"
-            disabled={isProcessing}
+            disabled={isProcessing || isVerifying}
             className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-black py-4 rounded-xl shadow-lg shadow-indigo-100 transition-all active:scale-[0.98] mt-2 uppercase text-[11px] tracking-widest flex items-center justify-center gap-2"
           >
-            {isProcessing && (
+            {(isProcessing || isVerifying) && (
               <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
             )}
-            {isProcessing ? 'Memproses...' : 'Mulai Ujian'}
+            {(isProcessing || isVerifying) ? 'Memproses...' : 'Mulai Ujian'}
           </button>
         </form>
       </div>

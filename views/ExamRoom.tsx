@@ -35,7 +35,7 @@ const ExamRoom: React.FC<ExamRoomProps> = ({ student, students, session, onActio
   const CLIPPING_SIDE = 60;      
 
   const currentStudentData = students.find(s => String(s.nis) === String(student.nis));
-  const isBlocked = currentStudentData?.status === StudentStatus.BLOKIR;
+  const isBlocked = student?.status === StudentStatus.BLOKIR || currentStudentData?.status === StudentStatus.BLOKIR;
 
   const resetZoomTimer = useCallback(() => {
     setIsZoomVisible(true);
