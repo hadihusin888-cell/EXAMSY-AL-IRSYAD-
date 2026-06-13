@@ -74,14 +74,19 @@ const ProctorDashboard: React.FC<ProctorDashboardProps> = ({
         <div className="flex items-center gap-3 md:gap-6 shrink-0">
           {onRefresh && (
             <button
+              id="proctor-refresh-btn"
               onClick={onRefresh}
               disabled={globalSyncing || isProcessing}
-              className="flex items-center justify-center p-2 rounded-xl bg-indigo-900/40 hover:bg-indigo-900/80 border border-indigo-800/40 hover:border-indigo-700/60 text-indigo-200 hover:text-white transition-all disabled:opacity-50"
-              title="Refresh Data"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-md hover:shadow-emerald-950/20 border border-emerald-500/15 transition-all duration-250 disabled:opacity-50"
+              title="Perbarui / Refresh Data"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${globalSyncing ? 'animate-spin text-white' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17" />
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${globalSyncing ? 'animate-spin text-white' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                <path d="M16 16h5v5" />
               </svg>
+              <span className="hidden md:inline font-black uppercase tracking-wider text-[10px]">Perbarui Data</span>
             </button>
           )}
           {(globalSyncing || isProcessing) && <div className="w-3.5 h-3.5 md:w-4 md:h-4 border-2 border-indigo-400/30 border-t-white rounded-full animate-spin"></div>}
