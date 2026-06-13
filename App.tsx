@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { ViewState, Student, ExamSession, StudentStatus, Room } from './types';
-import { dbAction, db, fetchStaticData, checkIsOfflineFallbackActive, DEFAULT_FALLBACK_STUDENTS, DEFAULT_FALLBACK_SESSIONS } from './services/firebaseService';
+import { dbAction, db, fetchStaticData, checkIsOfflineFallbackActive, setOfflineFallbackActive, DEFAULT_FALLBACK_STUDENTS, DEFAULT_FALLBACK_SESSIONS } from './services/firebaseService';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 
 const StudentLogin = lazy(() => import('./views/StudentLogin'));
@@ -260,11 +260,26 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-slate-50 overflow-x-hidden relative">
       {/* Simulation/Quota mode indicator */}
       {isSimulated && (
-        <div id="simulated-quota-alert" className="bg-amber-500 text-slate-950 px-4 py-3 text-center text-[10px] md:text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 border-b border-amber-600/30 shrink-0 z-50 relative animate-pulse">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          Mode Simulasi Lokal Aktif (Quota Basis Data Penuh) — Seluruh Menu Ujian, Kuis, Blokir, & Reset Siswa Berjalan 100% Menggunakan Penyimpanan Lokal browser.
+        <div id="simulated-quota-alert" className="bg-amber-500 text-slate-950 px-4 py-3 text-center text-[10px] md:text-xs font-black uppercase tracking-wider flex flex-col md:flex-row items-center justify-center gap-2 md:gap-4 border-b border-amber-600/30 shrink-0 z-50 relative">
+          <div className="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5 shrink-0 animate-pulse text-slate-950" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>Mode Simulasi Lokal Aktif (Quota Basis Data Penuh) — Seluruh Fitur Berjalan Menggunakan Penyimpanan Lokal.</span>
+          </div>
+          <button
+            id="exit-simulation-btn"
+            onClick={() => {
+              setOfflineFallbackActive(false);
+              window.location.reload();
+            }}
+            className="px-3 py-1 bg-slate-950 hover:bg-slate-900 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-md shrink-0 flex items-center gap-1 active:scale-95"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Keluar Simulasi (Hubungkan Database)
+          </button>
         </div>
       )}
       <Suspense fallback={
